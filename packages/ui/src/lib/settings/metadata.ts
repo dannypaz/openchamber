@@ -178,7 +178,7 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
   },
   {
     slug: 'magic-prompts',
-    title: 'Magic Prompts',
+    title: 'System Prompts',
     group: 'general',
     kind: 'split',
     keywords: ['prompts', 'templates', 'git', 'github', 'review', 'commit', 'pull request'],

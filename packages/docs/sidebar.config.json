@@ -241,17 +241,17 @@
           }
         },
         {
-          "label": "Magic Prompts",
+          "label": "System Prompts",
           "link": "/magic-prompts/",
           "translations": {
-            "uk": "Магічні підказки",
-            "zh-CN": "魔法提示词",
-            "es": "Prompts mágicos",
-            "pt-BR": "Prompts mágicos",
-            "ko": "매직 프롬프트",
-            "pl": "Magiczne prompty",
-            "fr": "Magic Prompts",
-            "ja": "マジックプロンプト"
+            "uk": "Системні промпти",
+            "zh-CN": "系统提示词",
+            "es": "Prompts del sistema",
+            "pt-BR": "Prompts do sistema",
+            "ko": "시스템 프롬프트",
+            "pl": "Prompty systemowe",
+            "fr": "Prompts système",
+            "ja": "システムプロンプト"
           }
         },
         {
