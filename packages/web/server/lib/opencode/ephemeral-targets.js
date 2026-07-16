@@ -52,7 +52,7 @@ export const createEphemeralOpenCodeTargetsRuntime = (deps) => {
     target.healthTimer = timer;
   };
 
-  const registerEphemeralTarget = async ({ id, host, port, authToken, authUsername } = {}) => {
+  const registerEphemeralTarget = async ({ id, host, port, authToken, authUsername, directory } = {}) => {
     const trimmedHost = typeof host === 'string' ? host.trim() : '';
     if (!trimmedHost) {
       throw new Error('registerEphemeralTarget requires a host');
@@ -82,6 +82,13 @@ export const createEphemeralOpenCodeTargetsRuntime = (deps) => {
       baseUrl,
       authToken: typeof authToken === 'string' ? authToken : '',
       authUsername: typeof authUsername === 'string' ? authUsername : '',
+      // The working directory OpenCode is serving on this target — required
+      // for callers to route session.create/x-opencode-directory requests at
+      // it (see cloud-provisioning.js, which sources this from the
+      // provisioning webhook response). Optional here since direct callers of
+      // this lower-level registry (ephemeral-target-routes.js) may already
+      // know the directory out-of-band.
+      directory: typeof directory === 'string' ? directory : '',
       status: 'healthy',
       createdAt,
       lastActivityAt: createdAt,
@@ -94,7 +101,7 @@ export const createEphemeralOpenCodeTargetsRuntime = (deps) => {
     startHealthLoop(target);
     log.log?.(`[ephemeral-targets] registered "${targetId}" at ${baseUrl}`);
 
-    return { id: target.id, status: target.status };
+    return { id: target.id, status: target.status, directory: target.directory };
   };
 
   const deregisterEphemeralTarget = (id) => {
@@ -126,6 +133,7 @@ export const createEphemeralOpenCodeTargetsRuntime = (deps) => {
     id: target.id,
     host: target.host,
     port: target.port,
+    directory: target.directory,
     status: target.status,
     createdAt: target.createdAt,
     lastActivityAt: target.lastActivityAt,

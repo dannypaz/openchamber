@@ -1429,6 +1429,8 @@ export const dict: Record<I18nKey, string> = {
   'chat.goal.action.cancel': 'キャンセル',
   'chat.goal.action.save': 'ゴールを保存',
   'chat.goal.action.start': 'ゴールを開始',
+  'chat.cloudSession.unavailable.title': 'クラウド VM が利用できません',
+  'chat.cloudSession.unavailable.description': 'このセッションのクラウド VM は実行されていません。停止されたか、アイドルタイムアウトに達した可能性があります。',
   'chat.goal.toast.actionFailed': 'ゴールの更新に失敗しました',
   'chat.goal.toast.distillFallback': '目標が上限を超え、要約もできませんでした — 監査には抜粋版を使用します',
   'chat.goal.row.aria': 'セッションゴール — 詳細を開く',

@@ -1411,6 +1411,8 @@ export const dict: Record<I18nKey, string> = {
   "chat.goal.action.cancel": "Cancelar",
   "chat.goal.action.save": "Guardar objetivo",
   "chat.goal.action.start": "Iniciar objetivo",
+  "chat.cloudSession.unavailable.title": "VM en la nube no disponible",
+  "chat.cloudSession.unavailable.description": "La VM en la nube de esta sesión ya no está en ejecución. Es posible que se haya detenido o que se haya alcanzado el tiempo de espera de inactividad.",
   "chat.goal.toast.actionFailed": "No se pudo actualizar el objetivo",
   "chat.goal.toast.distillFallback": "El objetivo superó el límite y no se pudo destilar — el auditor usa una versión recortada",
   "chat.goal.row.aria": "Objetivo de sesión — abrir detalles",

@@ -182,7 +182,7 @@ const createTimeoutSignal = (timeoutMs: number): { signal: AbortSignal; cleanup:
   };
 };
 
-const createRuntimeOpencodeClient = (config: { baseUrl: string; directory?: string }): OpencodeClient => {
+const createRuntimeOpencodeClient = (config: { baseUrl: string; directory?: string; headers?: Record<string, string> }): OpencodeClient => {
   return createOpencodeClient({
     ...config,
     fetch: runtimeFetch,
@@ -251,6 +251,10 @@ class OpencodeService {
   private client: OpencodeClient;
   private baseUrl: string;
   private scopedClients: Map<string, OpencodeClient> = new Map();
+  // Separate cache (not scopedClients) — keyed by targetId, not directory,
+  // since a cloud target's client is never valid for the default backend
+  // and vice versa. Cleared alongside scopedClients on runtime switch.
+  private ephemeralTargetClients: Map<string, OpencodeClient> = new Map();
   private currentDirectory: string | undefined = undefined;
   private directoryContextQueue: Promise<void> = Promise.resolve();
   private listDirectoryInFlight: Map<string, Promise<FilesystemEntry[]>> = new Map();
@@ -281,6 +285,7 @@ class OpencodeService {
     this.baseUrl = nextBaseUrl;
     this.client = createRuntimeOpencodeClient({ baseUrl: this.baseUrl });
     this.scopedClients.clear();
+    this.ephemeralTargetClients.clear();
     this.listDirectoryInFlight.clear();
     this.configProvidersInFlight.clear();
     this.listAgentsInFlight.clear();
@@ -311,6 +316,32 @@ class OpencodeService {
     }
     const scoped = createRuntimeOpencodeClient({ baseUrl: this.baseUrl, directory: normalized });
     this.scopedClients.set(key, scoped);
+    return scoped;
+  }
+
+  /**
+   * Returns an SDK client scoped to an ephemeral cloud target (a per-session
+   * VM registered server-side via /api/openchamber/ephemeral-targets).
+   * Every request from this client carries an x-opencode-target header,
+   * which the OpenChamber server's proxy resolves to that target's own
+   * baseUrl/credential instead of the default local/managed backend — see
+   * packages/web/server/lib/opencode/proxy.js's resolveEphemeralTarget().
+   * The browser never sees the target's own OpenCode credential; only the
+   * server-side proxy does.
+   */
+  getEphemeralTargetSdkClient(targetId: string, directory: string): OpencodeClient {
+    const normalized = this.normalizeCandidatePath(directory) ?? directory;
+    const key = `${targetId}:${normalized || ''}`;
+    const existing = this.ephemeralTargetClients.get(key);
+    if (existing) {
+      return existing;
+    }
+    const scoped = createRuntimeOpencodeClient({
+      baseUrl: this.baseUrl,
+      directory: normalized,
+      headers: { 'x-opencode-target': targetId },
+    });
+    this.ephemeralTargetClients.set(key, scoped);
     return scoped;
   }
 
@@ -520,9 +551,15 @@ class OpencodeService {
     return Array.isArray(response.data) ? response.data : [];
   }
 
-  async createSession(params?: { parentID?: string; title?: string; metadata?: Record<string, unknown> }, directory?: string | null): Promise<Session> {
+  async createSession(
+    params?: { parentID?: string; title?: string; metadata?: Record<string, unknown>; targetId?: string },
+    directory?: string | null,
+  ): Promise<Session> {
     const requestDirectory = this.normalizeCandidatePath(directory) ?? this.currentDirectory;
-    const response = await this.client.session.create({
+    const client = params?.targetId && requestDirectory
+      ? this.getEphemeralTargetSdkClient(params.targetId, requestDirectory)
+      : this.client;
+    const response = await client.session.create({
       ...(requestDirectory ? { directory: requestDirectory } : {}),
       parentID: params?.parentID,
       title: params?.title,

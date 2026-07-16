@@ -44,10 +44,13 @@ describe('cloud-provisioning', () => {
     provisionerApp.post('/provision', (req, res) => {
       provisionCalls.push(req.body);
       webhookAuthTokenSeen = req.headers.authorization;
-      res.json({ host: '127.0.0.1', port: vmPort, authToken: 'vm-secret' });
+      res.json({ host: '127.0.0.1', port: vmPort, authToken: 'vm-secret', directory: '/workspace/repo' });
     });
     provisionerApp.post('/provision-unreachable', (req, res) => {
-      res.json({ host: '127.0.0.1', port: 1, authToken: 'x' });
+      res.json({ host: '127.0.0.1', port: 1, authToken: 'x', directory: '/workspace/repo' });
+    });
+    provisionerApp.post('/provision-no-directory', (req, res) => {
+      res.json({ host: '127.0.0.1', port: vmPort, authToken: 'vm-secret' });
     });
     provisionerApp.post('/destroy', (req, res) => {
       destroyCalls.push(req.body);
@@ -117,12 +120,23 @@ describe('cloud-provisioning', () => {
 
     const result = await cloud.provisionCloudTarget({ sessionId: 'sess-1', metadata: { branch: 'feature/x' } });
 
-    expect(result).toEqual({ id: 'sess-1', status: 'healthy' });
+    expect(result).toEqual({ id: 'sess-1', status: 'healthy', directory: '/workspace/repo' });
     expect(provisionCalls).toHaveLength(1);
     expect(provisionCalls[0].metadata.branch).toBe('feature/x');
     expect(getWebhookAuthTokenSeen()).toBe('Bearer infra-secret');
     expect(ephemeralTargets.getEphemeralTarget('sess-1')?.authToken).toBe('vm-secret');
     expect(cloud.listProvisioned().map((t) => t.id)).toContain('sess-1');
+  });
+
+  it('rejects provisioning when the webhook response omits directory', async () => {
+    const { cloud, ephemeralTargets, setSettings, base } = await setup();
+    setSettings({
+      enabled: true,
+      provisionWebhookUrl: `${base}/provision-no-directory`,
+    });
+
+    await expect(cloud.provisionCloudTarget({ sessionId: 'sess-nodir' })).rejects.toThrow(/directory/);
+    expect(ephemeralTargets.getEphemeralTarget('sess-nodir')).toBeNull();
   });
 
   it('destroy deregisters locally and calls the destroy webhook exactly once per owned target', async () => {

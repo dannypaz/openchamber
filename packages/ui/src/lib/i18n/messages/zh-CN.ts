@@ -1399,6 +1399,8 @@ export const dict: Record<I18nKey, string> = {
   'chat.goal.action.cancel': '取消',
   'chat.goal.action.save': '保存目标',
   'chat.goal.action.start': '启动目标',
+  'chat.cloudSession.unavailable.title': '云虚拟机不可用',
+  'chat.cloudSession.unavailable.description': '此会话的云虚拟机已不再运行。它可能已被停止,或已达到空闲超时。',
   'chat.goal.toast.actionFailed': '目标更新失败',
   'chat.goal.toast.distillFallback': '目标超出限制且无法提炼 — 审核将使用节选版本',
   'chat.goal.row.aria': '会话目标 — 打开详情',

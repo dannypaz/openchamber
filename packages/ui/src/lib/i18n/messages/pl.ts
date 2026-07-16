@@ -2126,6 +2126,8 @@ export const dict: Record<I18nKey, string> = {
   'chat.goal.action.cancel': 'Anuluj',
   'chat.goal.action.save': 'Zapisz cel',
   'chat.goal.action.start': 'Rozpocznij cel',
+  'chat.cloudSession.unavailable.title': 'Chmurowa maszyna wirtualna niedostępna',
+  'chat.cloudSession.unavailable.description': 'Chmurowa maszyna wirtualna tej sesji już nie działa. Mogła zostać zatrzymana lub osiągnęła limit czasu bezczynności.',
   'chat.goal.toast.actionFailed': 'Nie udało się zaktualizować celu',
   'chat.goal.toast.distillFallback': 'Cel przekroczył limit i nie udało się go skondensować — audytor używa skróconej wersji',
   'chat.goal.row.aria': 'Cel sesji — otwórz szczegóły',

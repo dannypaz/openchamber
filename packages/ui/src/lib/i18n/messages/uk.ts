@@ -1411,6 +1411,8 @@ export const dict: Record<I18nKey, string> = {
   "chat.goal.action.cancel": "Скасувати",
   "chat.goal.action.save": "Зберегти ціль",
   "chat.goal.action.start": "Розпочати ціль",
+  "chat.cloudSession.unavailable.title": "Хмарна ВМ недоступна",
+  "chat.cloudSession.unavailable.description": "Хмарна ВМ цієї сесії більше не працює. Можливо, її зупинили або вона досягла тайм-ауту бездіяльності.",
   "chat.goal.toast.actionFailed": "Не вдалося оновити ціль",
   "chat.goal.toast.distillFallback": "Ціль перевищила ліміт і її не вдалося стиснути — аудитор використовує скорочену версію",
   "chat.goal.row.aria": "Ціль сесії — відкрити деталі",

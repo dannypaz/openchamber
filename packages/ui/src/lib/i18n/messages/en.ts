@@ -1433,6 +1433,8 @@ export const dict = {
   'chat.goal.action.cancel': 'Cancel',
   'chat.goal.action.save': 'Save goal',
   'chat.goal.action.start': 'Start goal',
+  'chat.cloudSession.unavailable.title': 'Cloud VM unavailable',
+  'chat.cloudSession.unavailable.description': "This session's cloud VM isn't running anymore. It may have been stopped or reached its idle timeout.",
   'chat.goal.toast.actionFailed': 'Goal update failed',
   "chat.goal.toast.distillFallback": "Objective exceeded the limit and couldn't be distilled — a trimmed version is used for the auditor",
   'chat.goal.row.aria': 'Session goal — open details',

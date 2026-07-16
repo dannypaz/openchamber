@@ -1403,6 +1403,8 @@ export const dict: Record<I18nKey, string> = {
   'chat.goal.action.cancel': '取消',
   'chat.goal.action.save': '儲存目標',
   'chat.goal.action.start': '啟動目標',
+  'chat.cloudSession.unavailable.title': '雲端虛擬機無法使用',
+  'chat.cloudSession.unavailable.description': '此工作階段的雲端虛擬機已不再執行。它可能已被停止,或已達到閒置逾時。',
   'chat.goal.toast.actionFailed': '目標更新失敗',
   'chat.goal.toast.distillFallback': '目標超出限制且無法提煉 — 稽核將使用節錄版本',
   'chat.goal.row.aria': '工作階段目標 — 開啟詳細資訊',

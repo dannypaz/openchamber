@@ -1253,6 +1253,8 @@ export const dict = {
   'chat.goal.action.cancel': 'Annuler',
   'chat.goal.action.save': 'Enregistrer l\'objectif',
   'chat.goal.action.start': 'Lancer l\'objectif',
+  'chat.cloudSession.unavailable.title': 'VM cloud indisponible',
+  'chat.cloudSession.unavailable.description': "La VM cloud de cette session n'est plus en cours d'exécution. Elle a peut-être été arrêtée ou a atteint son délai d'inactivité.",
   'chat.goal.toast.actionFailed': 'Échec de la mise à jour de l\'objectif',
   "chat.goal.toast.distillFallback": "L'objectif dépassait la limite et n'a pas pu être condensé — l'auditeur utilise une version tronquée",
   'chat.goal.row.aria': 'Objectif de session — ouvrir les détails',

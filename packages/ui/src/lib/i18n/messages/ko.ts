@@ -1435,6 +1435,8 @@ export const dict: Record<I18nKey, string> = {
   'chat.goal.action.cancel': '취소',
   'chat.goal.action.save': '목표 저장',
   'chat.goal.action.start': '목표 시작',
+  'chat.cloudSession.unavailable.title': '클라우드 VM을 사용할 수 없음',
+  'chat.cloudSession.unavailable.description': '이 세션의 클라우드 VM이 더 이상 실행되고 있지 않습니다. 중지되었거나 유휴 시간 제한에 도달했을 수 있습니다.',
   'chat.goal.toast.actionFailed': '목표 업데이트에 실패했습니다',
   'chat.goal.toast.distillFallback': '목표가 제한을 초과했고 요약도 실패했습니다 — 감사에는 발췌본을 사용합니다',
   'chat.goal.row.aria': '세션 목표 — 세부 정보 열기',

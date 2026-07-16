@@ -74,8 +74,18 @@ export const createCloudProvisioningRuntime = (deps) => {
 
     const host = typeof payload?.host === 'string' ? payload.host.trim() : '';
     const port = Number(payload?.port);
+    const directory = typeof payload?.directory === 'string' ? payload.directory.trim() : '';
     if (!host || !Number.isFinite(port) || port <= 0) {
       throw new Error('Provisioning webhook returned an invalid { host, port } response');
+    }
+    if (!directory) {
+      // OpenCode binds one process to one working directory (see
+      // ephemeral-targets.js) — without knowing it, callers can never
+      // successfully route a session.create/x-opencode-directory request at
+      // this target, since a directory is required alongside x-opencode-target
+      // (see client.ts's getEphemeralTargetSdkClient). The provisioner owns
+      // the VM's filesystem layout, so it must report this back, not us.
+      throw new Error('Provisioning webhook response is missing "directory" (the working directory OpenCode is serving on the VM)');
     }
 
     // registerEphemeralTarget health-probes before returning — if the VM
@@ -85,6 +95,7 @@ export const createCloudProvisioningRuntime = (deps) => {
       id: targetId,
       host,
       port,
+      directory,
       authToken: typeof payload?.authToken === 'string' ? payload.authToken : '',
     });
 

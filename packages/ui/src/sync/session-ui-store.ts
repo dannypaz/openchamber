@@ -252,6 +252,7 @@ export type SessionUIState = {
 
   // Actions — UI state management
   setCurrentSession: (id: string | null, directoryHint?: string | null) => void
+  setCurrentCloudSession: (id: string, directory: string) => void
   prepareForRuntimeSwitch: (apiBaseUrl?: string | null) => void
   restoreForRuntimeSwitch: (apiBaseUrl?: string | null) => void
   openNewSessionDraft: (options?: Partial<NewSessionDraftState>) => void
@@ -642,6 +643,24 @@ export const useSessionUIStore = create<SessionUIState>()((set, get) => ({
       markSessionViewed(id)
       setActiveSession(resolvedDir ?? "", id)
     }
+  },
+
+  // Cloud-target sessions never route through the default backend, so unlike
+  // setCurrentSession this must NOT trigger a default-client message fetch,
+  // switch the app's global working directory, or change the active project
+  // — those are local-filesystem concepts scoped to the default backend, and
+  // the "directory" here is only meaningful behind the target's own
+  // x-opencode-target header (see cloud-pipeline-registry.ts). Only the two
+  // fields ChatView/ChatContainer read to select which session to render are
+  // set, plus the same notification bookkeeping local sessions get.
+  setCurrentCloudSession: (id, directory) => {
+    get().closeNewSessionDraft()
+    const key = runtimeMemoryKey()
+    activeSessionByRuntime.set(key, id)
+    set({ currentSessionId: id, currentSessionDirectory: directory })
+    writeRuntimeSessionMemory(key, { sessionId: id, directory })
+    markSessionViewed(id)
+    setActiveSession(directory, id)
   },
 
   prepareForRuntimeSwitch: (apiBaseUrl?: string | null) => {
