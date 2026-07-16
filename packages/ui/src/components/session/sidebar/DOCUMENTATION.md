@@ -26,7 +26,8 @@
 
 - `SidebarHeader.tsx`: Top header UI for add-project, session search, and display mode.
 - `SidebarActivitySections.tsx`: Global top section renderer; currently used for the `recent` section only.
-- `SidebarFooter.tsx`: Static footer with icon-only settings, shortcuts, and about actions.
+- `SidebarFooter.tsx`: Bottom-of-sidebar footer with the GitHub account control (leftmost, when connected) plus icon-only settings, shortcuts, and about actions.
+- `SidebarGitHubAccountMenu.tsx`: Bottom-of-sidebar GitHub avatar control; opens an upward account-switcher dropdown when multiple accounts are connected, otherwise renders a static avatar. Moved here from the top-right header (`Header.tsx`'s former `DesktopGitHubControl`) so identity/account controls live at the bottom of the sidebar, matching common app conventions.
 - `SidebarProjectsList.tsx`: Main scrollable tree renderer for projects, root sessions, worktrees/groups, and empty/search states.
 - `SessionGroupSection.tsx`: Renders a single worktree/archived group, collapse/expand, folder subtree, and group-level controls.
 - `SessionNodeItem.tsx`: Renders one session row/tree node with inline metadata, menu actions, minimal/default variants, and nested children.
