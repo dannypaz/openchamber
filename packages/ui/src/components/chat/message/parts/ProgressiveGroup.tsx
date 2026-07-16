@@ -13,6 +13,7 @@ import { Text } from '@/components/ui/text';
 import { Icon } from "@/components/icon/Icon";
 import { FadeInOnReveal } from '../FadeInOnReveal';
 import { getToolIcon } from './toolPresentation';
+import { ToolStatusBadge } from './ToolStatusBadge';
 import { getToolMetadata } from '@/lib/toolHelpers';
 import { isExpandableTool, isStandaloneTool, isStaticTool } from './toolRenderUtils';
 import { RuntimeAPIContext } from '@/contexts/runtimeAPIContext';
@@ -82,6 +83,12 @@ const isActivityRunning = (activity: TurnActivityPart): boolean => {
         return true;
     }
     return typeof activity.endedAt !== 'number';
+};
+
+const isActivitySuccessful = (activity: TurnActivityPart): boolean => {
+    if (activity.kind !== 'tool') return false;
+    const part = activity.part as ToolPartType;
+    return (part.state?.status as string) === 'completed';
 };
 
 /**
@@ -576,6 +583,10 @@ const StaticToolRowInner: React.FC<{
     const currentDirectory = useDirectoryStore((state) => state.currentDirectory);
     const skills = useSkillsStore((state) => state.skills);
     const hasRunningActivity = React.useMemo(() => activities.some((activity) => isActivityRunning(activity)), [activities]);
+    const allActivitiesSuccessful = React.useMemo(
+        () => !hasRunningActivity && activities.every((activity) => isActivitySuccessful(activity)),
+        [activities, hasRunningActivity],
+    );
     const skillByName = React.useMemo(() => new Map(skills.map((skill) => [skill.name, skill])), [skills]);
 
     const descriptions = React.useMemo(() => {
@@ -680,7 +691,10 @@ const StaticToolRowInner: React.FC<{
             )}
         >
             <div className="inline-flex h-5 items-center flex-shrink-0" style={{ color: 'var(--tools-icon)' }}>
-                {icon}
+                <span className="relative inline-flex size-3.5 items-center justify-center">
+                    {icon}
+                    <ToolStatusBadge isRunning={hasRunningActivity} isSuccess={allActivitiesSuccessful} />
+                </span>
             </div>
             <MinDurationShineText
                 active={hasRunningActivity}
