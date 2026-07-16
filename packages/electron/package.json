@@ -155,7 +155,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "openchamber",
+      "owner": "dannypaz",
       "repo": "openchamber"
     }
   }

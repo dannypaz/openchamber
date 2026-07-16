@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  MAIN_CHANNEL_UPDATER_FEED,
   PRODUCTION_UPDATER_FEED,
   parseLoopbackUpdaterUrl,
   resolveUpdaterFeed,
@@ -16,8 +17,38 @@ test('production updater feed is immutable GitHub configuration', () => {
   assert.equal(Object.isFrozen(PRODUCTION_UPDATER_FEED), true);
   assert.deepEqual(PRODUCTION_UPDATER_FEED, {
     provider: 'github',
-    owner: 'openchamber',
+    owner: 'dannypaz',
     repo: 'openchamber',
+  });
+});
+
+test('main channel updater feed is immutable GitHub configuration', () => {
+  assert.equal(Object.isFrozen(MAIN_CHANNEL_UPDATER_FEED), true);
+  assert.deepEqual(MAIN_CHANNEL_UPDATER_FEED, {
+    provider: 'github',
+    owner: 'dannypaz',
+    repo: 'openchamber',
+    channel: 'main',
+  });
+});
+
+test('resolves the main channel feed when requested', () => {
+  assert.deepEqual(resolveUpdaterFeed({ updateChannel: 'main' }), MAIN_CHANNEL_UPDATER_FEED);
+});
+
+test('defaults to the stable production feed when no channel is given', () => {
+  assert.equal(resolveUpdaterFeed({}), PRODUCTION_UPDATER_FEED);
+  assert.equal(resolveUpdaterFeed({ updateChannel: 'stable' }), PRODUCTION_UPDATER_FEED);
+});
+
+test('E2E override still takes precedence over the main channel feed', () => {
+  assert.deepEqual(resolveUpdaterFeed({
+    environment: overrideEnvironment,
+    testBuild: true,
+    updateChannel: 'main',
+  }), {
+    provider: 'generic',
+    url: 'http://127.0.0.1:49152/updates/',
   });
 });
 

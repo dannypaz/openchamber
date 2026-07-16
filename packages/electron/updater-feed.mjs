@@ -2,8 +2,15 @@ import fs from 'node:fs';
 
 export const PRODUCTION_UPDATER_FEED = Object.freeze({
   provider: 'github',
-  owner: 'openchamber',
+  owner: 'dannypaz',
   repo: 'openchamber',
+});
+
+export const MAIN_CHANNEL_UPDATER_FEED = Object.freeze({
+  provider: 'github',
+  owner: 'dannypaz',
+  repo: 'openchamber',
+  channel: 'main',
 });
 
 const isLoopbackHostname = (hostname) => {
@@ -32,16 +39,22 @@ export const parseLoopbackUpdaterUrl = (value) => {
   }
 };
 
+const resolveBaseFeed = (updateChannel) =>
+  updateChannel === 'main' ? MAIN_CHANNEL_UPDATER_FEED : PRODUCTION_UPDATER_FEED;
+
 export const resolveUpdaterFeed = ({
   environment = process.env,
   testBuild = false,
+  updateChannel = 'stable',
 } = {}) => {
+  const baseFeed = resolveBaseFeed(updateChannel);
+
   if (environment.OPENCHAMBER_E2E !== '1'
     || testBuild !== true) {
-    return PRODUCTION_UPDATER_FEED;
+    return baseFeed;
   }
 
   const url = parseLoopbackUpdaterUrl(environment.OPENCHAMBER_UPDATER_E2E_URL);
-  if (!url) return PRODUCTION_UPDATER_FEED;
+  if (!url) return baseFeed;
   return { provider: 'generic', url };
 };
