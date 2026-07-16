@@ -2,6 +2,31 @@
 
 Feature log tracking what shipped in each merged PR.
 
+## PR #6 — Add default app selection for opening projects on desktop
+
+- New "Open In" section in Defaults Settings for choosing a default app to open projects from OpenChamber, visible only on desktop with local origin access (`isDesktopShell()` + `isDesktopLocalOriginActive()`).
+- Wires into `useOpenInAppsStore` to list available apps and persist the selection; initializes the app list on mount.
+- Settings search entry added (keywords: finder, editor, vscode, cursor, ide, open in, reveal, explorer).
+- Localized title/description/field label/aria copy across all 10 supported languages.
+
+## PR #5 — Add branch selection and creation UI to draft picker
+
+- Draft picker's branch selector replaced with a searchable `Command` dropdown on desktop and a `MobileOverlayPanel` on mobile, instead of a plain `Select`.
+- New `createWorktreeDraftForExistingBranch()` to create a worktree for an existing local branch without checking it out in the project root, and `createWorktreeDraftForNewBranch()` to create one for a user-named new branch.
+- `branchOnlyOptions` filters to local branches that don't already have a worktree and aren't the current project-root checkout; `rankBranchesForQuery()` powers smart search ranking.
+- Common creation logic extracted into `runCreateDraftWorktree()`, shared by the auto-generated, existing-branch, and new-branch flows.
+- New-branch input state resets on dropdown close to avoid mid-entry reopen bugs; both flows guard against an in-flight worktree request or directory override.
+- New "Branches" label and new-branch-creation strings localized across all supported languages.
+
+## PR #4 — Move GitHub account control from header to sidebar footer
+
+- Relocated the GitHub avatar/account-switcher from the desktop header's top-right into the session sidebar footer, alongside the existing settings/shortcuts/about actions (bottom-left profile placement, matching common app conventions).
+- Same account-switching behavior, now shared across web, desktop, VS Code, and mobile via `SessionSidebar`.
+
+## PR #3 — docs: add feature log (DANNY_LIST.md)
+
+- Added this file, `DANNY_LIST.md`, as a changelog tracking shipped features per merged PR.
+
 ## PR #2 — feat: add Auto Router model mode with configurable cheap/frontier tiers
 
 - Cost-aware "Auto" entry in the model picker (mirrors Cursor's Auto mode): routes simple asks to a cheap model and hard asks to a stronger/frontier model, without manually swapping models.
