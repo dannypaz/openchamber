@@ -97,7 +97,11 @@ export const createGracefulShutdownRuntime = (dependencies) => {
 
     if (typeof disposeEphemeralOpenCodeTargets === 'function') {
       try {
-        const disposedIds = disposeEphemeralOpenCodeTargets();
+        // Awaited: cloud-provisioned targets' teardown calls a destroy
+        // webhook over the network (not just local bookkeeping), so this
+        // can be a real async operation, unlike Phase 1's synchronous
+        // local-only deregister.
+        const disposedIds = await disposeEphemeralOpenCodeTargets();
         if (Array.isArray(disposedIds) && disposedIds.length > 0) {
           console.log(`Deregistered ${disposedIds.length} ephemeral OpenCode target(s) on shutdown`);
         }

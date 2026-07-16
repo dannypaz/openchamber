@@ -103,6 +103,7 @@ const pageOrder: SettingsPageSlug[] = [
   'skills.catalog',
   'voice',
   'tunnel',
+  'cloud',
   'about',
 ];
 
@@ -213,6 +214,8 @@ export function getSettingsNavIcon(slug: SettingsPageSlug): IconName | null {
       return 'mic';
     case 'tunnel':
       return 'global';
+    case 'cloud':
+      return 'cloud';
     case 'about':
       return 'information';
     case 'home':
@@ -483,6 +486,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
     notifications: 'notifications',
     voice: 'voice',
     tunnel: 'tunnel',
+    cloud: 'cloud',
   }), []);
 
   const getPageTitle = React.useCallback((slug: SettingsPageSlug): string => {
@@ -529,6 +533,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
         return t('settings.page.voice.title');
       case 'tunnel':
         return t('settings.page.tunnel.title');
+      case 'cloud':
+        return t('settings.page.cloud.title');
       case 'about':
         return t('settings.page.about.title');
       case 'home':
@@ -818,7 +824,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
       case 'sessions':
       case 'notifications':
       case 'voice':
-      case 'tunnel': {
+      case 'tunnel':
+      case 'cloud': {
         const section = openChamberSectionBySlug[slug] ?? 'visual';
         return <OpenChamberPage section={section} />;
       }
@@ -1034,7 +1041,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
                         : <Icon name={iconName!} className="h-4 w-4 shrink-0" />}
                       <span className="flex items-center gap-1.5 whitespace-nowrap overflow-hidden transition-opacity duration-150 opacity-100">
                         <span className="typography-ui-label font-normal truncate">{getPageTitle(page.slug)}</span>
-                        {page.slug === 'tunnel' && (
+                        {(page.slug === 'tunnel' || page.slug === 'cloud') && (
                           <span className="shrink-0 typography-micro px-1 rounded leading-none pb-px text-[var(--status-warning)] bg-[var(--status-warning)]/10">
                             {t('settings.view.badge.beta')}
                           </span>
