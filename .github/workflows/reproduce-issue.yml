@@ -9,8 +9,10 @@ on:
 jobs:
   reproduce:
     if: |
-      (github.event_name == 'issues' && github.event.label.name == 'bug') ||
-      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && github.event.comment.user.login != 'openchamber-bot[bot]' && (github.event.comment.body == '@openchamber-bot reproduce' || startsWith(github.event.comment.body, '@openchamber-bot reproduce ')))
+      github.repository == 'openchamber/openchamber' && (
+        (github.event_name == 'issues' && github.event.label.name == 'bug') ||
+        (github.event_name == 'issue_comment' && !github.event.issue.pull_request && github.event.comment.user.login != 'openchamber-bot[bot]' && (github.event.comment.body == '@openchamber-bot reproduce' || startsWith(github.event.comment.body, '@openchamber-bot reproduce ')))
+      )
     runs-on: ubuntu-latest
     concurrency:
       group: reproduce-issue-${{ github.event_name }}-${{ github.event.issue.number }}
