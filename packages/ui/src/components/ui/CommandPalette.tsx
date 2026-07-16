@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useUIStore } from '@/stores/useUIStore';
+import { useConfigStore } from '@/stores/useConfigStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useGlobalSessionsStore, resolveGlobalSessionDirectory } from '@/stores/useGlobalSessionsStore';
 import { useDirectoryStore } from '@/stores/useDirectoryStore';
@@ -265,10 +266,11 @@ export const CommandPalette: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Settings sub-pages (only show when there's a query)
   // ---------------------------------------------------------------------------
+  const settingsDisableSnippets = useConfigStore((s) => s.settingsDisableSnippets);
   const settingsRuntimeCtx = React.useMemo<SettingsRuntimeContext>(() => {
     const isDesktop = isDesktopShell();
-    return { isVSCode: isVSCodeRuntime(), isWeb: !isDesktop && isWebRuntime(), isDesktop, isMobile };
-  }, [isMobile]);
+    return { isVSCode: isVSCodeRuntime(), isWeb: !isDesktop && isWebRuntime(), isDesktop, isMobile, disableSnippets: settingsDisableSnippets };
+  }, [isMobile, settingsDisableSnippets]);
 
   const settingsEntries = React.useMemo<CommandEntry[]>(() => {
     return SETTINGS_PAGE_METADATA
