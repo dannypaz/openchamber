@@ -343,6 +343,14 @@ interface ModelPickerListProps {
   onSelectNone?: () => void;
   selectionCount?: (entry: ModelPickerEntry) => number;
   disabled?: boolean;
+  // Optional pinned "Auto" row shown above Favorites — the router picks a
+  // model per message rather than this being a real provider/model pair.
+  // Opt-in only: settings pickers (default model, small model override, …)
+  // must not offer Auto as a target.
+  showAutoOption?: boolean;
+  autoOptionProviderID?: string;
+  autoOptionModelID?: string;
+  autoOptionLabel?: string;
   maxHeightClassName?: string;
   maxHeightStyle?: React.CSSProperties;
   sectionHeaderClassName?: string;
@@ -383,6 +391,10 @@ export const ModelPickerList: React.FC<ModelPickerListProps> = ({
   onSelectNone,
   selectionCount,
   disabled = false,
+  showAutoOption = false,
+  autoOptionProviderID,
+  autoOptionModelID,
+  autoOptionLabel,
   maxHeightClassName = 'max-h-[min(400px,calc(100dvh-12rem))] flex-1',
   maxHeightStyle,
   sectionHeaderClassName,
@@ -483,8 +495,20 @@ export const ModelPickerList: React.FC<ModelPickerListProps> = ({
     })
     .filter((provider) => provider.models.length > 0), [allowedProviderSet, isHidden, matchesQuery, orderedProviders]);
 
+  const autoEntry: ModelPickerEntry | null = React.useMemo(() => {
+    if (!showAutoOption || !autoOptionProviderID || !autoOptionModelID) return null;
+    const label = autoOptionLabel || 'Auto';
+    if (!matchesQuery(label, '')) return null;
+    return { model: { id: autoOptionModelID, name: label }, providerID: autoOptionProviderID, modelID: autoOptionModelID };
+  }, [autoOptionLabel, autoOptionModelID, autoOptionProviderID, matchesQuery, showAutoOption]);
+
+  const isAutoEntry = React.useCallback((entry: ModelPickerEntry) => (
+    Boolean(autoEntry) && entry.providerID === autoOptionProviderID && entry.modelID === autoOptionModelID
+  ), [autoEntry, autoOptionModelID, autoOptionProviderID]);
+
   const flatModelList = React.useMemo(() => {
     const items: ModelPickerEntry[] = [];
+    if (autoEntry) items.push(autoEntry);
     if (!collapsedSections.has('favorites')) filteredFavorites.forEach((entry) => items.push(entry));
     if (!collapsedSections.has('recent')) filteredRecents.forEach((entry) => items.push(entry));
     filteredProviders.forEach((provider) => {
@@ -492,7 +516,7 @@ export const ModelPickerList: React.FC<ModelPickerListProps> = ({
       provider.models.forEach((model) => items.push({ model, providerID: provider.id, modelID: model.id as string }));
     });
     return items;
-  }, [collapsedSections, filteredFavorites, filteredProviders, filteredRecents]);
+  }, [autoEntry, collapsedSections, filteredFavorites, filteredProviders, filteredRecents]);
 
   const hasResults = flatModelList.length > 0;
   const favoriteSortingEnabled = Boolean(onReorderFavorite) && searchQuery.trim().length === 0 && filteredFavorites.length > 1;
@@ -624,7 +648,7 @@ export const ModelPickerList: React.FC<ModelPickerListProps> = ({
               {count > 0 ? <span className="typography-micro text-muted-foreground flex-shrink-0">x{count}</span> : null}
               {renderRowEnd?.(entry, { isHighlighted, isSelected })}
               {isSelected ? <Icon name="check" className="h-4 w-4 text-primary flex-shrink-0" /> : null}
-              {onToggleFavorite ? (
+              {onToggleFavorite && !isAutoEntry(entry) ? (
                 <button type="button" disabled={disabled} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggleFavorite(entry); }} className={cn('model-favorite-button flex h-4 w-4 items-center justify-center hover:text-primary/80 flex-shrink-0 disabled:pointer-events-none', favorite ? 'text-primary' : 'text-muted-foreground')} aria-label={favorite ? labels.unfavorite : labels.favorite} title={favorite ? labels.unfavorite : labels.favorite}>
                   <Icon name={favorite ? 'star-fill' : 'star'} className="h-3.5 w-3.5" />
                 </button>
@@ -771,6 +795,13 @@ export const ModelPickerList: React.FC<ModelPickerListProps> = ({
 
           {!hasResults ? (
             <div className="px-2 py-4 text-center typography-meta text-muted-foreground">{labels.noResults}</div>
+          ) : null}
+
+          {autoEntry ? (
+            <div>
+              {renderRow(autoEntry, 'auto', false, currentFlatIndex++)}
+              <div className="h-px bg-border/40 my-1" />
+            </div>
           ) : null}
 
           {filteredFavorites.length > 0 ? (

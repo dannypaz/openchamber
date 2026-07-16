@@ -909,6 +909,12 @@ const sanitizeWebSettings = (payload: unknown): DesktopSettings | null => {
   if (typeof candidate.smallModelOverride === 'string' && candidate.smallModelOverride.length > 0) {
     result.smallModelOverride = candidate.smallModelOverride;
   }
+  if (typeof candidate.modelRouterCheapOverride === 'string' && candidate.modelRouterCheapOverride.length > 0) {
+    result.modelRouterCheapOverride = candidate.modelRouterCheapOverride;
+  }
+  if (typeof candidate.modelRouterFrontierOverride === 'string' && candidate.modelRouterFrontierOverride.length > 0) {
+    result.modelRouterFrontierOverride = candidate.modelRouterFrontierOverride;
+  }
   if (typeof candidate.autoCreateWorktree === 'boolean') {
     result.autoCreateWorktree = candidate.autoCreateWorktree;
   }

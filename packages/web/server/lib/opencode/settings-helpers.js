@@ -417,6 +417,14 @@ export const createSettingsHelpers = (dependencies) => {
       const trimmed = candidate.smallModelOverride.trim();
       result.smallModelOverride = trimmed.length > 0 ? trimmed : undefined;
     }
+    if (typeof candidate.modelRouterCheapOverride === 'string') {
+      const trimmed = candidate.modelRouterCheapOverride.trim();
+      result.modelRouterCheapOverride = trimmed.length > 0 ? trimmed : undefined;
+    }
+    if (typeof candidate.modelRouterFrontierOverride === 'string') {
+      const trimmed = candidate.modelRouterFrontierOverride.trim();
+      result.modelRouterFrontierOverride = trimmed.length > 0 ? trimmed : undefined;
+    }
     if (typeof candidate.defaultGitIdentityId === 'string') {
       const trimmed = candidate.defaultGitIdentityId.trim();
       result.defaultGitIdentityId = trimmed.length > 0 ? trimmed : undefined;

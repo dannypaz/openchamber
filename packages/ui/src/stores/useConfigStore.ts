@@ -32,6 +32,12 @@ const FALLBACK_MODEL_ID = "big-pickle";
 // persisted as a stable provider selection.
 const ADD_PROVIDER_SENTINEL = "__add_provider__";
 const GIT_UTILITY_PROVIDER_ID = "zen";
+// Sentinel provider/model selected by the model picker's "Auto" entry. Unlike
+// ADD_PROVIDER_SENTINEL this pair is meant to flow into and survive
+// currentProviderId/currentModelId — ChatInput resolves it to a real model
+// server-side right before sending.
+export const AUTO_ROUTER_PROVIDER_ID = "__auto__";
+export const AUTO_ROUTER_MODEL_ID = "__auto__";
 const GIT_UTILITY_PREFERRED_MODEL_ID = "big-pickle";
 const PROVIDER_CONFIG_REFRESH_CONCURRENCY = 4;
 
@@ -210,7 +216,7 @@ const hasProviderModel = (
     return provider.models.some((model) => model.id === modelId);
 };
 
-const resolveProviderModelSelection = ({
+export const resolveProviderModelSelection = ({
     providers,
     currentProviderId,
     currentModelId,
@@ -238,6 +244,13 @@ const resolveProviderModelSelection = ({
             ? variant
             : undefined;
     };
+
+    // The Auto sentinel never appears in the real providers list, so it must
+    // bypass the hasProviderModel gate below — otherwise the next provider
+    // refresh would silently kick the session out of Auto mode.
+    if (currentProviderId === AUTO_ROUTER_PROVIDER_ID && currentModelId === AUTO_ROUTER_MODEL_ID) {
+        return { providerId: AUTO_ROUTER_PROVIDER_ID, modelId: AUTO_ROUTER_MODEL_ID };
+    }
 
     if (currentProviderId && currentModelId && hasProviderModel(providers, currentProviderId, currentModelId)) {
         return {
@@ -1696,14 +1709,17 @@ export const useConfigStore = create<ConfigStore>()(
 
                 setProvider: (providerId: string) => {
                     const { providers } = get();
-                    const provider = providers.find((p) => p.id === providerId);
- 
-                    if (!provider) {
+                    // The Auto sentinel is not a real provider — it never appears in
+                    // `providers`, so it must skip the existence gate below instead of
+                    // silently no-oping.
+                    const isAutoRouterSelection = providerId === AUTO_ROUTER_PROVIDER_ID;
+                    const provider = isAutoRouterSelection ? null : providers.find((p) => p.id === providerId);
+
+                    if (!isAutoRouterSelection && !provider) {
                         return;
                     }
- 
-                    const firstModel = provider.models[0];
-                    const newModelId = firstModel?.id || "";
+
+                    const newModelId = isAutoRouterSelection ? AUTO_ROUTER_MODEL_ID : (provider?.models[0]?.id || "");
  
                     set((state) => {
                         const directoryKey = state.activeDirectoryKey;

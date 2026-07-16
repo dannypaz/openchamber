@@ -2102,6 +2102,7 @@ export const dict: Record<I18nKey, string> = {
   'chat.modelControls.reorderFavoriteAria': '重新排序最愛',
   'chat.modelControls.reorderFavoriteTitle': '拖曳以重新排序最愛',
   'chat.modelControls.reorderProviderTitle': '拖曳以重新排序供應商',
+  'chat.modelControls.autoModel': '自動',
   'chat.modelControls.permissionLabel.custom': '自訂',
   'chat.modelControls.permissionLabel.allow': '允許',
   'chat.modelControls.permissionLabel.deny': '拒絕',

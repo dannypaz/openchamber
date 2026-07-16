@@ -42,6 +42,8 @@ export const DefaultsSettings: React.FC = () => {
   const [smallModelUseDefault, setSmallModelUseDefault] = React.useState(true);
   const [smallModelOverride, setSmallModelOverride] = React.useState<string | undefined>();
   const [smallModelProviders, setSmallModelProviders] = React.useState<string[] | undefined>();
+  const [modelRouterCheapOverride, setModelRouterCheapOverride] = React.useState<string | undefined>();
+  const [modelRouterFrontierOverride, setModelRouterFrontierOverride] = React.useState<string | undefined>();
   const [isLoading, setIsLoading] = React.useState(true);
 
   const parsedModel = React.useMemo(() => getDisplayModel(defaultModel), [defaultModel]);
@@ -55,6 +57,8 @@ export const DefaultsSettings: React.FC = () => {
           defaultAgent?: string;
           smallModelUseDefault?: boolean;
           smallModelOverride?: string;
+          modelRouterCheapOverride?: string;
+          modelRouterFrontierOverride?: string;
         } | null = null;
 
         if (!data) {
@@ -74,6 +78,8 @@ export const DefaultsSettings: React.FC = () => {
                   defaultAgent: typeof settings.defaultAgent === 'string' ? settings.defaultAgent : undefined,
                   smallModelUseDefault: typeof raw.smallModelUseDefault === 'boolean' ? raw.smallModelUseDefault : undefined,
                   smallModelOverride: typeof raw.smallModelOverride === 'string' ? raw.smallModelOverride : undefined,
+                  modelRouterCheapOverride: typeof raw.modelRouterCheapOverride === 'string' ? raw.modelRouterCheapOverride : undefined,
+                  modelRouterFrontierOverride: typeof raw.modelRouterFrontierOverride === 'string' ? raw.modelRouterFrontierOverride : undefined,
                 };
               }
             } catch {
@@ -112,6 +118,12 @@ export const DefaultsSettings: React.FC = () => {
           if (typeof data.smallModelUseDefault === 'boolean') setSmallModelUseDefault(data.smallModelUseDefault);
           if (typeof data.smallModelOverride === 'string' && data.smallModelOverride.trim()) {
             setSmallModelOverride(data.smallModelOverride.trim());
+          }
+          if (typeof data.modelRouterCheapOverride === 'string' && data.modelRouterCheapOverride.trim()) {
+            setModelRouterCheapOverride(data.modelRouterCheapOverride.trim());
+          }
+          if (typeof data.modelRouterFrontierOverride === 'string' && data.modelRouterFrontierOverride.trim()) {
+            setModelRouterFrontierOverride(data.modelRouterFrontierOverride.trim());
           }
         }
       } catch (error) {
@@ -226,7 +238,35 @@ export const DefaultsSettings: React.FC = () => {
     []
   );
 
+  const handleModelRouterCheapOverrideChange = React.useCallback(
+    async (providerId: string, modelId: string) => {
+      const newValue = providerId && modelId ? `${providerId}/${modelId}` : undefined;
+      setModelRouterCheapOverride(newValue);
+      try {
+        await updateDesktopSettings({ modelRouterCheapOverride: newValue ?? '' });
+      } catch (error) {
+        console.warn('Failed to save Auto Router cheap-tier override:', error);
+      }
+    },
+    []
+  );
+
+  const handleModelRouterFrontierOverrideChange = React.useCallback(
+    async (providerId: string, modelId: string) => {
+      const newValue = providerId && modelId ? `${providerId}/${modelId}` : undefined;
+      setModelRouterFrontierOverride(newValue);
+      try {
+        await updateDesktopSettings({ modelRouterFrontierOverride: newValue ?? '' });
+      } catch (error) {
+        console.warn('Failed to save Auto Router frontier-tier override:', error);
+      }
+    },
+    []
+  );
+
   const parsedSmallModel = React.useMemo(() => getDisplayModel(smallModelOverride), [smallModelOverride]);
+  const parsedModelRouterCheap = React.useMemo(() => getDisplayModel(modelRouterCheapOverride), [modelRouterCheapOverride]);
+  const parsedModelRouterFrontier = React.useMemo(() => getDisplayModel(modelRouterFrontierOverride), [modelRouterFrontierOverride]);
 
   React.useEffect(() => {
     if (smallModelUseDefault || smallModelProviders !== undefined) return;
@@ -413,6 +453,46 @@ export const DefaultsSettings: React.FC = () => {
             </div>
           </div>
         ) : null}
+      </section>
+
+      <div className="mt-6 mb-0.5 px-1">
+        <div className="flex items-center gap-2">
+          <h3 className="typography-ui-header font-medium text-foreground">{t('settings.openchamber.defaults.modelRouter.title')}</h3>
+        </div>
+      </div>
+
+      <section className="px-2 pb-2 pt-0 space-y-0">
+        <div className="mt-0 mb-1 typography-meta text-muted-foreground">
+          {t('settings.openchamber.defaults.modelRouter.description')}
+        </div>
+
+        <div data-settings-item="sessions.model-router-cheap" className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:gap-8">
+          <div className="flex min-w-0 flex-col sm:w-56 shrink-0">
+            <span className="typography-ui-label text-foreground">{t('settings.openchamber.defaults.modelRouter.cheapModel')}</span>
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-fit sm:flex-initial">
+            <ModelSelector
+              providerId={parsedModelRouterCheap.providerId}
+              modelId={parsedModelRouterCheap.modelId}
+              onChange={handleModelRouterCheapOverrideChange}
+              placeholder={t('settings.openchamber.defaults.modelRouter.cheapModelHint')}
+            />
+          </div>
+        </div>
+
+        <div data-settings-item="sessions.model-router-frontier" className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:gap-8">
+          <div className="flex min-w-0 flex-col sm:w-56 shrink-0">
+            <span className="typography-ui-label text-foreground">{t('settings.openchamber.defaults.modelRouter.frontierModel')}</span>
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-fit sm:flex-initial">
+            <ModelSelector
+              providerId={parsedModelRouterFrontier.providerId}
+              modelId={parsedModelRouterFrontier.modelId}
+              onChange={handleModelRouterFrontierOverrideChange}
+              placeholder={t('settings.openchamber.defaults.modelRouter.frontierModelHint')}
+            />
+          </div>
+        </div>
       </section>
     </div>
   );

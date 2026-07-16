@@ -351,6 +351,19 @@ const SETTINGS_SEARCH_ITEMS: readonly SettingsSearchItem[] = [
     keywords: ['small model', 'utility', 'summary', 'recap', 'cheap', 'override'],
   },
   {
+    id: 'sessions.model-router-cheap',
+    page: 'sessions',
+    titleKey: 'settings.openchamber.defaults.modelRouter.title',
+    descriptionKey: 'settings.openchamber.defaults.modelRouter.description',
+    keywords: ['auto router', 'auto', 'model router', 'cheap', 'override', 'tier'],
+  },
+  {
+    id: 'sessions.model-router-frontier',
+    page: 'sessions',
+    titleKey: 'settings.openchamber.defaults.modelRouter.frontierModel',
+    keywords: ['auto router', 'auto', 'model router', 'frontier', 'override', 'tier'],
+  },
+  {
     id: 'sessions.auto-cleanup',
     page: 'sessions',
     titleKey: 'settings.openchamber.sessionRetention.field.enableAutoCleanup',
