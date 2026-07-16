@@ -48,6 +48,8 @@ import {
 } from './lib/event-stream/index.js';
 import { createFsSearchRuntime as createFsSearchRuntimeFactory } from './lib/fs/search.js';
 import { createOpenCodeLifecycleRuntime } from './lib/opencode/lifecycle.js';
+import { createEphemeralOpenCodeTargetsRuntime } from './lib/opencode/ephemeral-targets.js';
+import { registerEphemeralTargetRoutes } from './lib/opencode/ephemeral-target-routes.js';
 import { createOpenCodeEnvRuntime } from './lib/opencode/env-runtime.js';
 import { resolveOpenCodeEnvConfig } from './lib/opencode/env-config.js';
 import { createHmrStateRuntime } from './lib/opencode/hmr-state-runtime.js';
@@ -887,6 +889,14 @@ const serverUtilsRuntime = createServerUtilsRuntime({
   buildOpenCodeUrl,
   ensureOpenCodeApiPrefix,
   getUiNotificationClients: () => uiNotificationClients,
+  // Deferred to call-time: ephemeralOpenCodeTargetsRuntime is constructed
+  // further below, after openCodeLifecycleRuntime (it reuses its
+  // probeExternalOpenCode) — same forward-reference pattern already used for
+  // setupProxy elsewhere in this file.
+  getEphemeralTarget: (...args) => ephemeralOpenCodeTargetsRuntime.getEphemeralTarget(...args),
+  getOpenCodeAuthHeadersFor: (...args) => openCodeAuthStateRuntime.getOpenCodeAuthHeadersFor(...args),
+  buildOpenCodeUrlFor: (...args) => openCodeNetworkRuntime.buildOpenCodeUrlFor(...args),
+  touchEphemeralTargetActivity: (...args) => ephemeralOpenCodeTargetsRuntime.touchEphemeralTargetActivity(...args),
   getOpenCodePort: () => openCodePort,
   setOpenCodePortState: (value) => {
     openCodePort = value;
@@ -1050,6 +1060,14 @@ const openCodeLifecycleRuntime = createOpenCodeLifecycleRuntime({
   getActiveSessionCount,
 });
 
+// Registry for ephemeral OpenCode backends (e.g. one per-session cloud
+// microVM provisioned by external infra) — additive alongside the singleton
+// managed/external target above; see ephemeral-targets.js.
+const ephemeralOpenCodeTargetsRuntime = createEphemeralOpenCodeTargetsRuntime({
+  crypto,
+  probeExternalOpenCode: openCodeLifecycleRuntime.probeExternalOpenCode,
+});
+
 const restartOpenCode = (...args) => openCodeLifecycleRuntime.restartOpenCode(...args);
 const waitForOpenCodeReady = (...args) => openCodeLifecycleRuntime.waitForOpenCodeReady(...args);
 const waitForAgentPresence = (...args) => openCodeLifecycleRuntime.waitForAgentPresence(...args);
@@ -1160,6 +1178,7 @@ const gracefulShutdownRuntime = createGracefulShutdownRuntime({
   },
   tunnelAuthController,
   scheduledTasksRuntime,
+  disposeEphemeralOpenCodeTargets: () => ephemeralOpenCodeTargetsRuntime.disposeAll(),
 });
 
 const gracefulShutdown = (...args) => gracefulShutdownRuntime.gracefulShutdown(...args);
@@ -1546,6 +1565,13 @@ async function main(options = {}) {
     uiAuthController,
     isRequestOriginAllowed,
     rejectWebSocketUpgrade,
+  });
+
+  registerEphemeralTargetRoutes(app, {
+    express,
+    registerEphemeralTarget: ephemeralOpenCodeTargetsRuntime.registerEphemeralTarget,
+    deregisterEphemeralTarget: ephemeralOpenCodeTargetsRuntime.deregisterEphemeralTarget,
+    listEphemeralTargets: ephemeralOpenCodeTargetsRuntime.listEphemeralTargets,
   });
 
   const startupPipelineResult = await startupPipelineRuntime.run({

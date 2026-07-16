@@ -56,6 +56,24 @@ export const createOpenCodeAuthStateRuntime = (dependencies) => {
     return { Authorization: `Basic ${credentials}` };
   };
 
+  // Ephemeral targets (e.g. per-session cloud microVMs) each carry their own
+  // provisioner-issued password — never promoted to process.env or the shared
+  // module-level password above, since it's scoped to one throwaway VM. Uses
+  // the same Basic scheme as getOpenCodeAuthHeaders() because a freshly
+  // provisioned OpenCode instance is started the same way (OPENCODE_SERVER_PASSWORD),
+  // so it expects the same auth mechanism, just with its own credential.
+  const getOpenCodeAuthHeadersFor = (target) => {
+    const password = normalizeOpenCodePassword(target?.authToken || '');
+    if (!password) {
+      return {};
+    }
+    const username = typeof target?.authUsername === 'string' && target.authUsername.trim()
+      ? target.authUsername.trim()
+      : 'opencode';
+    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    return { Authorization: `Basic ${credentials}` };
+  };
+
   const isOpenCodeConnectionSecure = () => Object.prototype.hasOwnProperty.call(getOpenCodeAuthHeaders(), 'Authorization');
 
   const ensureLocalOpenCodeServerPassword = async ({ rotateManaged = false } = {}) => {
@@ -83,6 +101,7 @@ export const createOpenCodeAuthStateRuntime = (dependencies) => {
 
   return {
     getOpenCodeAuthHeaders,
+    getOpenCodeAuthHeadersFor,
     isOpenCodeConnectionSecure,
     ensureLocalOpenCodeServerPassword,
   };

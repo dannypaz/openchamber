@@ -991,5 +991,6 @@ export const createOpenCodeLifecycleRuntime = (deps) => {
     startHealthMonitoring,
     triggerHealthCheck,
     waitForPortRelease,
+    probeExternalOpenCode,
   };
 };

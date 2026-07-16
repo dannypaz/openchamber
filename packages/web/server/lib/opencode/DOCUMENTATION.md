@@ -11,6 +11,8 @@ This module provides OpenCode server integration utilities for the web server ru
 - `packages/web/server/lib/opencode/cli-entry-runtime.js`: CLI entrypoint runtime that detects direct execution, parses CLI options, and starts server bootstrap.
 - `packages/web/server/lib/opencode/routes.js`: OpenCode/provider settings and auth-related route registration.
 - `packages/web/server/lib/opencode/lifecycle.js`: OpenCode process lifecycle runtime (startup, restart, readiness, health monitoring).
+- `packages/web/server/lib/opencode/ephemeral-targets.js`: registry for ephemeral OpenCode backends (e.g. per-session cloud microVMs) connected to at runtime, additive alongside the singleton target lifecycle.js owns.
+- `packages/web/server/lib/opencode/ephemeral-target-routes.js`: HTTP surface (register/deregister/list) over ephemeral-targets.js.
 - `packages/web/server/lib/opencode/env-runtime.js`: OpenCode CLI/binary resolution and shell environment runtime.
 - `packages/web/server/lib/opencode/env-config.js`: OpenCode-related environment variable parsing and validation (host/port/hostname).
 - `packages/web/server/lib/opencode/hmr-state-runtime.js`: HMR-persistent runtime state initialization, auth-state bootstrap, and HMR sync helpers.
@@ -109,6 +111,8 @@ This module provides OpenCode server integration utilities for the web server ru
   - `startHealthMonitoring(healthCheckIntervalMs)`
   - `waitForPortRelease(port, timeoutMs, hostname?)`
   - `killProcessOnPort(port)`
+  - `probeExternalOpenCode(port, origin)`: exported so ephemeral-targets.js
+    can reuse the same health-check logic instead of reimplementing it.
 
 ## Public exports (env-runtime.js)
 - `createOpenCodeEnvRuntime(dependencies)`: creates runtime that owns OpenCode CLI environment and binary discovery state.
@@ -156,6 +160,9 @@ This module provides OpenCode server integration utilities for the web server ru
   - `normalizeApiPrefix(prefix)`
   - `setDetectedOpenCodeApiPrefix()`
   - `buildOpenCodeUrl(path, prefixOverride?)`
+  - `buildOpenCodeUrlFor(target, path, prefixOverride?)`: sibling of
+    `buildOpenCodeUrl` for an ephemeral target (see ephemeral-targets.js) —
+    takes the target's own `baseUrl` instead of reading the singleton `state`.
   - `ensureOpenCodeApiPrefix()`
   - `scheduleOpenCodeApiDetection()`
 
@@ -219,6 +226,10 @@ This module provides OpenCode server integration utilities for the web server ru
 - `createOpenCodeAuthStateRuntime(dependencies)`: creates runtime for managed OpenCode auth password state and request headers.
 - Returned API:
   - `getOpenCodeAuthHeaders()`
+  - `getOpenCodeAuthHeadersFor(target)`: sibling of `getOpenCodeAuthHeaders`
+    for an ephemeral target (see ephemeral-targets.js) — builds a Basic-auth
+    header from the target's own provisioner-issued credential, which is
+    never promoted to `process.env` or the shared module-level password.
   - `isOpenCodeConnectionSecure()`
   - `ensureLocalOpenCodeServerPassword(options?)`
 
@@ -339,6 +350,52 @@ This module provides OpenCode server integration utilities for the web server ru
   - Generic `/api/*` forwarding with hop-by-hop header filtering
   - Windows `/session` merge fallback path behavior
   - OpenCode readiness gate for proxied `/api` requests
+  - Optional ephemeral-target dispatch: when a proxied request carries an
+    `x-opencode-target` header naming a target registered via
+    ephemeral-targets.js, that request's URL and auth resolve to the
+    ephemeral target instead of the default managed/external one (the
+    readiness gate is also skipped for it, since ephemeral targets track
+    their own health independently). Absence of the header preserves
+    default-target behavior exactly. Deps `getEphemeralTarget`,
+    `getOpenCodeAuthHeadersFor`, `buildOpenCodeUrlFor`,
+    `touchEphemeralTargetActivity` are optional — omitting all four disables
+    this path entirely.
+
+## Public exports (ephemeral-targets.js)
+- `createEphemeralOpenCodeTargetsRuntime(dependencies)`: registry for ephemeral
+  OpenCode backends (e.g. one per-session cloud microVM provisioned by
+  external infra), additive alongside the singleton managed/external target
+  owned by lifecycle.js — registering/tearing down a target here never
+  touches `openCodeLifecycleState`, and one target's health/lifecycle never
+  affects another's or the default target's.
+- Deps: `crypto`, `probeExternalOpenCode` (reused from
+  `createOpenCodeLifecycleRuntime`'s return — this module does not
+  reimplement health-check logic), optional `healthIntervalMs`, `log`.
+- Returned API:
+  - `registerEphemeralTarget({ id?, host, port, authToken?, authUsername? })`:
+    probes health before registering; rejects (does not register) on probe
+    failure so a broken target is never silently added.
+  - `deregisterEphemeralTarget(id)`: idempotent — a repeat/racing call is a
+    no-op returning `false`.
+  - `getEphemeralTarget(id)`, `listEphemeralTargets()`
+  - `touchEphemeralTargetActivity(id)`: bumps last-activity, for callers
+    that want an idle-TTL sweep.
+  - `sweepIdleTargets(maxIdleMs, onIdle?)`: no automatic scheduling — callers
+    invoke this themselves with their own threshold and teardown callback.
+  - `disposeAll()`: best-effort per-target teardown, isolated so one
+    failure never blocks the rest; used on server shutdown.
+- Does NOT provision or destroy the underlying VM — that's the caller's own
+  infra; this module only tracks reachability/credentials for targets that
+  already exist.
+
+## Public exports (ephemeral-target-routes.js)
+- `registerEphemeralTargetRoutes(app, dependencies)`: thin HTTP surface over
+  ephemeral-targets.js:
+  - `POST /api/openchamber/ephemeral-targets` — registers a target; 502 (not
+    silently registered) if its initial health probe fails.
+  - `DELETE /api/openchamber/ephemeral-targets/:id` — local bookkeeping only;
+    does not itself call any provisioner `destroy()`.
+  - `GET /api/openchamber/ephemeral-targets` — lists registered targets.
 
 ## Public exports (watcher.js)
 - `createOpenCodeWatcherRuntime(dependencies)`: creates global event watcher runtime backed by the shared upstream SSE reader.

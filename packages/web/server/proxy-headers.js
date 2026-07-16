@@ -12,6 +12,9 @@ const filteredRequestHeaders = new Set([
   'trailer',
   'upgrade',
   'accept-encoding',
+  // OpenChamber-internal routing hint (which ephemeral target to proxy to) —
+  // OpenCode itself doesn't understand it, so it must never reach upstream.
+  'x-opencode-target',
 ]);
 
 const filteredResponseHeaders = new Set([

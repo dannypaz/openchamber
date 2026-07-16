@@ -186,7 +186,47 @@ export const registerOpenCodeProxy = (app, deps) => {
     getOpenCodeAuthHeaders,
     buildOpenCodeUrl,
     ensureOpenCodeApiPrefix,
+    // Optional: wiring for ephemeral targets (e.g. per-session cloud microVMs).
+    // All three are optional and additive — when omitted, every request keeps
+    // hitting the default managed/external target exactly as before.
+    getEphemeralTarget,
+    getOpenCodeAuthHeadersFor,
+    buildOpenCodeUrlFor,
+    touchEphemeralTargetActivity,
   } = deps;
+
+  const resolveEphemeralTarget = (req) => {
+    if (typeof getEphemeralTarget !== 'function') {
+      return null;
+    }
+    const targetId = typeof req?.headers?.['x-opencode-target'] === 'string'
+      ? req.headers['x-opencode-target'].trim()
+      : '';
+    if (!targetId) {
+      return null;
+    }
+    return getEphemeralTarget(targetId);
+  };
+
+  const resolveAuthHeadersForRequest = (ephemeralTarget) => {
+    if (ephemeralTarget && typeof getOpenCodeAuthHeadersFor === 'function') {
+      return getOpenCodeAuthHeadersFor(ephemeralTarget);
+    }
+    return getOpenCodeAuthHeaders();
+  };
+
+  const resolveUpstreamUrl = (ephemeralTarget, upstreamPath, prefixOverride) => {
+    if (ephemeralTarget && typeof buildOpenCodeUrlFor === 'function') {
+      return buildOpenCodeUrlFor(ephemeralTarget, upstreamPath, prefixOverride);
+    }
+    return buildOpenCodeUrl(upstreamPath, prefixOverride);
+  };
+
+  const touchActivity = (ephemeralTarget) => {
+    if (ephemeralTarget && typeof touchEphemeralTargetActivity === 'function') {
+      touchEphemeralTargetActivity(ephemeralTarget.id);
+    }
+  };
 
   if (app.get('opencodeProxyConfigured')) {
     return;
@@ -277,7 +317,12 @@ export const registerOpenCodeProxy = (app, deps) => {
   // Keep generic proxy requests on the same upstream base URL that health checks
   // and direct fetch helpers use. This avoids split-brain state where /health
   // succeeds against an external host but /api/* still proxies to 127.0.0.1.
-  const resolveProxyTarget = () => {
+  const resolveProxyTarget = (req) => {
+    const ephemeralTarget = resolveEphemeralTarget(req);
+    if (ephemeralTarget) {
+      return ephemeralTarget.baseUrl;
+    }
+
     try {
       const resolved = normalizeProxyTarget(buildOpenCodeUrl('/', ''));
       if (resolved) {
@@ -346,21 +391,23 @@ export const registerOpenCodeProxy = (app, deps) => {
     req.on('close', closeUpstream);
 
     try {
+      const ephemeralTarget = resolveEphemeralTarget(req);
       const requestUrl = typeof req.originalUrl === 'string' && req.originalUrl.length > 0
         ? req.originalUrl
         : (typeof req.url === 'string' ? req.url : '');
       const upstreamPath = requestUrl.startsWith('/api') ? requestUrl.slice(4) || '/' : requestUrl;
       const headers = normalizeForwardedDirectoryHeaders(
-        collectForwardProxyHeaders(req.headers, getOpenCodeAuthHeaders())
+        collectForwardProxyHeaders(req.headers, resolveAuthHeadersForRequest(ephemeralTarget))
       );
       headers.accept ??= 'text/event-stream';
       headers['cache-control'] ??= 'no-cache';
 
-      upstream = await fetch(buildOpenCodeUrl(upstreamPath, ''), {
+      upstream = await fetch(resolveUpstreamUrl(ephemeralTarget, upstreamPath, ''), {
         method: 'GET',
         headers,
         signal: abortController.signal,
       });
+      touchActivity(ephemeralTarget);
 
       res.status(upstream.status);
       applyForwardProxyResponseHeaders(upstream.headers, res);
@@ -469,22 +516,25 @@ export const registerOpenCodeProxy = (app, deps) => {
   };
 
   const fetchSessionListPayload = async (upstreamPath, { req = null, timeoutMs = null } = {}) => {
+    const ephemeralTarget = req ? resolveEphemeralTarget(req) : null;
+    const authHeaders = resolveAuthHeadersForRequest(ephemeralTarget);
     const headers = req
       ? {
-          ...normalizeForwardedDirectoryHeaders(collectForwardProxyHeaders(req.headers, getOpenCodeAuthHeaders())),
+          ...normalizeForwardedDirectoryHeaders(collectForwardProxyHeaders(req.headers, authHeaders)),
           accept: 'application/json',
           'accept-encoding': 'identity',
         }
       : {
           Accept: 'application/json',
-          ...getOpenCodeAuthHeaders(),
+          ...authHeaders,
           'accept-encoding': 'identity',
         };
-    const upstream = await fetch(buildOpenCodeUrl(upstreamPath, ''), {
+    const upstream = await fetch(resolveUpstreamUrl(ephemeralTarget, upstreamPath, ''), {
       method: 'GET',
       headers,
       ...(typeof timeoutMs === 'number' ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
     });
+    touchActivity(ephemeralTarget);
     const contentType = upstream.headers.get('content-type') || 'application/json; charset=utf-8';
     const bodyText = await upstream.text();
     const isJson = contentType.toLowerCase().includes('application/json');
@@ -570,6 +620,13 @@ export const registerOpenCodeProxy = (app, deps) => {
   };
 
   app.use('/api', async (req, res, next) => {
+    // Ephemeral targets are health-checked independently at registration and
+    // on their own interval (ephemeral-targets.js) — the default target's
+    // restart/readiness state is irrelevant to them.
+    if (resolveEphemeralTarget(req)) {
+      return next();
+    }
+
     if (
       req.path.startsWith('/themes/custom') ||
       req.path.startsWith('/push') ||
@@ -703,15 +760,24 @@ export const registerOpenCodeProxy = (app, deps) => {
     pathRewrite: { '^/api': '' },
     timeout: PROXY_REQUEST_TIMEOUT_MS,
     proxyTimeout: PROXY_REQUEST_TIMEOUT_MS,
-    // Dynamic target — port can change after restart
-    router: () => resolveProxyTarget(),
+    // Dynamic target — port can change after restart, or the request may
+    // carry an x-opencode-target header naming a registered ephemeral target.
+    router: (req) => resolveProxyTarget(req),
     on: {
       proxyReq: (proxyReq, req) => {
-        // Inject OpenCode auth headers
-        const authHeaders = getOpenCodeAuthHeaders();
+        const ephemeralTarget = resolveEphemeralTarget(req);
+
+        // Inject OpenCode auth headers — the ephemeral target's own
+        // credential when one is addressed, otherwise the default target's.
+        const authHeaders = resolveAuthHeadersForRequest(ephemeralTarget);
         if (authHeaders.Authorization) {
           proxyReq.setHeader('Authorization', authHeaders.Authorization);
         }
+
+        // Internal routing hint only — OpenCode itself doesn't understand it.
+        proxyReq.removeHeader?.('x-opencode-target');
+
+        touchActivity(ephemeralTarget);
 
         if (req.headers?.['x-opencode-directory-encoding'] === 'uri') {
           const rawDirectory = req.headers['x-opencode-directory'];

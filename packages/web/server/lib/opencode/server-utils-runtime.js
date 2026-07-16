@@ -14,6 +14,10 @@ export const createServerUtilsRuntime = (dependencies) => {
     buildOpenCodeUrl,
     ensureOpenCodeApiPrefix,
     getUiNotificationClients,
+    getEphemeralTarget,
+    getOpenCodeAuthHeadersFor,
+    buildOpenCodeUrlFor,
+    touchEphemeralTargetActivity,
     getOpenCodePort,
     setOpenCodePortState,
     syncToHmrState,
@@ -213,6 +217,10 @@ export const createServerUtilsRuntime = (dependencies) => {
       buildOpenCodeUrl,
       ensureOpenCodeApiPrefix,
       getUiNotificationClients,
+      getEphemeralTarget,
+      getOpenCodeAuthHeadersFor,
+      buildOpenCodeUrlFor,
+      touchEphemeralTargetActivity,
     });
   };
 
