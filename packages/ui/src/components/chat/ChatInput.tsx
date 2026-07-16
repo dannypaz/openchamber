@@ -5021,7 +5021,24 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                                     </CommandItem>
                                                 </CommandGroup>
                                             ) : null}
-                                            <CommandGroup heading={t('chat.chatInput.worktrees')}>
+                                            <CommandGroup
+                                                heading={
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>{t('chat.chatInput.worktrees')}</span>
+                                                        {!newBranchInputOpen && (
+                                                            <button
+                                                                type="button"
+                                                                className="text-muted-foreground hover:text-foreground cursor-pointer"
+                                                                onPointerDown={(e) => { e.stopPropagation(); }}
+                                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setNewBranchInputOpen(true); }}
+                                                                aria-label={t('chat.chatInput.worktreeNew')}
+                                                            >
+                                                                <Icon name="add" className="size-3.5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                }
+                                            >
                                                 {worktreeBranchOptions.map((option) => (
                                                     <CommandItem
                                                         key={option.value}
@@ -5063,24 +5080,13 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                                             }}
                                                         />
                                                     </div>
-                                                ) : (
-                                                    <div className="flex items-center justify-end px-2 py-1">
-                                                        <button
-                                                            type="button"
-                                                            className="text-muted-foreground typography-meta hover:text-foreground cursor-pointer"
-                                                            onPointerDown={(e) => { e.stopPropagation(); }}
-                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setNewBranchInputOpen(true); }}
-                                                        >
-                                                            {t('chat.chatInput.worktreeNew')}
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                ) : null}
                                             </CommandGroup>
                                             {branchOnlyOptions.length > 0 ? (
                                                 <CommandGroup heading={t('chat.chatInput.branches')}>
                                                     {(branchDropdownQuery.trim()
                                                         ? rankedBranchOnlyOptions.matching.map((branch) => branch.value)
-                                                        : rankedBranchOnlyOptions.otherLocal
+                                                        : rankedBranchOnlyOptions.otherLocal.slice(0, 5)
                                                     ).map((branch) => (
                                                         <CommandItem
                                                             key={branch}

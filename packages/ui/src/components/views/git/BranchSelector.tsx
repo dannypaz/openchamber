@@ -80,13 +80,13 @@ export const BranchSelector: React.FC<BranchSelectorProps> = ({
 
   const filteredLocal = React.useMemo(() => {
     const term = search.toLowerCase();
-    if (!term) return localBranches.slice(0, 5);
+    if (!term) return localBranches;
     return localBranches.filter((b) => b.toLowerCase().includes(term));
   }, [search, localBranches]);
 
   const filteredRemote = React.useMemo(() => {
     const term = search.toLowerCase();
-    if (!term) return remoteBranches.slice(0, 5);
+    if (!term) return remoteBranches;
     return remoteBranches.filter((b) => b.toLowerCase().includes(term));
   }, [search, remoteBranches]);
 
@@ -197,9 +197,9 @@ export const BranchSelector: React.FC<BranchSelectorProps> = ({
           >
             <CommandEmpty>{t('gitView.branch.empty')}</CommandEmpty>
 
-            {showRemoteSelect && (
-              <CommandGroup>
-                {/* Remote selection step */}
+            <CommandGroup>
+              {showRemoteSelect ? (
+                // Remote selection step
                 <div className="px-2 py-1.5">
                   <div className="flex items-center gap-2 mb-2">
                     <button
@@ -236,11 +236,12 @@ export const BranchSelector: React.FC<BranchSelectorProps> = ({
                     ))}
                   </div>
                 </div>
-              </CommandGroup>
-            )}
-
-            {!showRemoteSelect && showCreate && (
-              <CommandGroup>
+              ) : !showCreate ? (
+                <CommandItem onSelect={handleShowCreate}>
+                  <Icon name="add" className="size-4" />
+                  <span>{t('gitView.branch.create')}</span>
+                </CommandItem>
+              ) : (
                 <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
                   <input
                     ref={createInputRef}
@@ -281,78 +282,61 @@ export const BranchSelector: React.FC<BranchSelectorProps> = ({
                     <Icon name="close" className="size-4" />
                   </button>
                 </div>
-              </CommandGroup>
-            )}
+              )}
+            </CommandGroup>
 
-            {!showRemoteSelect && (
-              <>
-                <CommandGroup
-                  heading={
-                    <div className="flex items-center justify-between w-full">
-                      <span>{t('gitView.branch.localBranches')}</span>
-                      {!showCreate && (
-                        <button
-                          type="button"
-                          onClick={handleShowCreate}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <Icon name="add" className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  }
+            <CommandSeparator />
+
+            <CommandGroup heading={t('gitView.branch.localBranches')}>
+              {filteredLocal.map((branch) => (
+                <CommandItem
+                  key={`local-${branch}`}
+                  onSelect={() => handleCheckout(branch)}
                 >
-                  {filteredLocal.map((branch) => (
-                    <CommandItem
-                      key={`local-${branch}`}
-                      onSelect={() => handleCheckout(branch)}
-                    >
-                      <span className="flex flex-1 flex-col">
-                        <span className="typography-ui-label text-foreground">
-                          {branch}
-                        </span>
-                        {(branchInfo?.[branch]?.ahead || branchInfo?.[branch]?.behind) && (
-                          <span className="typography-micro text-muted-foreground">
-                            {branchInfo[branch].ahead || 0} ahead ·{' '}
-                            {branchInfo[branch].behind || 0} behind
-                          </span>
-                        )}
+                  <span className="flex flex-1 flex-col">
+                    <span className="typography-ui-label text-foreground">
+                      {branch}
+                    </span>
+                    {(branchInfo?.[branch]?.ahead || branchInfo?.[branch]?.behind) && (
+                      <span className="typography-micro text-muted-foreground">
+                        {branchInfo[branch].ahead || 0} ahead ·{' '}
+                        {branchInfo[branch].behind || 0} behind
                       </span>
-                      {currentBranch === branch && (
-                        <span className="typography-micro text-primary">{t('gitView.branch.currentBadge')}</span>
-                      )}
-                    </CommandItem>
-                  ))}
-                  {filteredLocal.length === 0 && (
-                    <CommandItem disabled className="justify-center">
-                      <span className="typography-meta text-muted-foreground">
-                        {t('gitView.branch.noLocalBranches')}
-                      </span>
-                    </CommandItem>
+                    )}
+                  </span>
+                  {currentBranch === branch && (
+                    <span className="typography-micro text-primary">{t('gitView.branch.currentBadge')}</span>
                   )}
-                </CommandGroup>
+                </CommandItem>
+              ))}
+              {filteredLocal.length === 0 && (
+                <CommandItem disabled className="justify-center">
+                  <span className="typography-meta text-muted-foreground">
+                    {t('gitView.branch.noLocalBranches')}
+                  </span>
+                </CommandItem>
+              )}
+            </CommandGroup>
 
-                <CommandSeparator />
+            <CommandSeparator />
 
-                <CommandGroup heading={t('gitView.branch.remoteBranches')}>
-                  {filteredRemote.map((branch) => (
-                    <CommandItem
-                      key={`remote-${branch}`}
-                      onSelect={() => handleCheckout(branch)}
-                    >
-                      <span className="typography-ui-label text-foreground">{branch}</span>
-                    </CommandItem>
-                  ))}
-                  {filteredRemote.length === 0 && (
-                    <CommandItem disabled className="justify-center">
-                      <span className="typography-meta text-muted-foreground">
-                        {t('gitView.branch.noRemoteBranches')}
-                      </span>
-                    </CommandItem>
-                  )}
-                </CommandGroup>
-              </>
-            )}
+            <CommandGroup heading={t('gitView.branch.remoteBranches')}>
+              {filteredRemote.map((branch) => (
+                <CommandItem
+                  key={`remote-${branch}`}
+                  onSelect={() => handleCheckout(branch)}
+                >
+                  <span className="typography-ui-label text-foreground">{branch}</span>
+                </CommandItem>
+              ))}
+              {filteredRemote.length === 0 && (
+                <CommandItem disabled className="justify-center">
+                  <span className="typography-meta text-muted-foreground">
+                    {t('gitView.branch.noRemoteBranches')}
+                  </span>
+                </CommandItem>
+              )}
+            </CommandGroup>
 
           </CommandList>
         </Command>
