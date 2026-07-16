@@ -2,6 +2,11 @@
 
 Feature log tracking what shipped in each merged PR.
 
+## Unreleased — Improve sidebar footer layout
+
+- Sidebar footer now uses `justify-between` layout to separate GitHub account control (left) from settings/shortcuts/about icons (right) for better visual balance.
+- Added max-width constraint (6rem) to the right-side icon group to prevent excessive spacing.
+
 ## PR #6 — Add default app selection for opening projects on desktop
 
 - New "Open In" section in Defaults Settings to pick a default app for opening projects (desktop-only, requires local origin access). Localized across all supported languages.
