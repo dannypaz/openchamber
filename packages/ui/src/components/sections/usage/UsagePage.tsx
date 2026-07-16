@@ -65,7 +65,7 @@ export const UsagePage: React.FC = () => {
       return;
     }
     const firstConfigured = results.find((entry) => entry.configured)?.providerId;
-    setSelectedProvider(firstConfigured ?? QUOTA_PROVIDERS[0]?.id ?? null);
+    setSelectedProvider(firstConfigured ?? null);
   }, [results, selectedProviderId, setSelectedProvider]);
 
   const selectedResult = results.find((entry) => entry.providerId === selectedProviderId) ?? null;
@@ -141,9 +141,14 @@ export const UsagePage: React.FC = () => {
   const providerSelectedModels = selectedProviderId ? (selectedModels[selectedProviderId] ?? []) : [];
 
   if (!selectedProviderId) {
+    const noProvidersConfigured = results.length > 0 && !results.some((entry) => entry.configured);
     return (
         <div className="flex h-full items-center justify-center text-muted-foreground">
-        <p className="typography-body">{t('settings.usage.page.empty.selectProvider')}</p>
+        <p className="typography-body">
+          {noProvidersConfigured
+            ? t('settings.usage.page.empty.noProvidersConfigured')
+            : t('settings.usage.page.empty.selectProvider')}
+        </p>
       </div>
     );
   }

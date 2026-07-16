@@ -116,7 +116,8 @@ const CONTEXT_PANEL_MIN_WIDTH = 380;
 const CONTEXT_PANEL_MAX_WIDTH = 1400;
 const CONTEXT_PANEL_MAX_TABS = 12;
 const CONTEXT_PANEL_MAX_LABEL_LENGTH = 120;
-const LEFT_SIDEBAR_MIN_WIDTH = 280;
+// Must match SIDEBAR_MIN_WIDTH in components/layout/Sidebar.tsx.
+const LEFT_SIDEBAR_MIN_WIDTH = 306;
 export const RIGHT_SIDEBAR_MIN_WIDTH = 360;
 export const RIGHT_SIDEBAR_MAX_WIDTH = 860;
 const activeMainTabByRuntime = new Map<string, MainTab>();
@@ -590,6 +591,8 @@ interface UIStore {
   fontSize: number;
   // Global draft welcome starters; null = unset (use the default built-in set).
   globalDraftStarters: DraftStarterRef[] | null;
+  // Whether the draft starter chip row shows on the new-chat welcome screen at all.
+  draftStartersEnabled: boolean;
   terminalFontSize: number;
   editorFontSize: number;
   uiFont: UiFontOption;
@@ -747,6 +750,7 @@ interface UIStore {
   setMessageLimit: (value: number) => void;
   setFontSize: (size: number) => void;
   setGlobalDraftStarters: (refs: DraftStarterRef[]) => void;
+  setDraftStartersEnabled: (value: boolean) => void;
   setTerminalFontSize: (size: number) => void;
   setEditorFontSize: (size: number) => void;
   setUiFont: (font: UiFontOption) => void;
@@ -903,6 +907,7 @@ export const useUIStore = create<UIStore>()(
         messageLimit: 200,
         fontSize: 100,
         globalDraftStarters: null,
+        draftStartersEnabled: true,
         terminalFontSize: 13,
         editorFontSize: 13,
         uiFont: DEFAULT_UI_FONT,
@@ -1665,6 +1670,10 @@ export const useUIStore = create<UIStore>()(
           set({ globalDraftStarters: refs });
         },
 
+        setDraftStartersEnabled: (value) => {
+          set({ draftStartersEnabled: value });
+        },
+
         setTerminalFontSize: (size) => {
           const rounded = Math.round(size);
           const clamped = Math.max(9, Math.min(52, rounded));
@@ -2342,6 +2351,7 @@ export const useUIStore = create<UIStore>()(
           messageLimit: state.messageLimit,
           fontSize: state.fontSize,
           globalDraftStarters: state.globalDraftStarters,
+          draftStartersEnabled: state.draftStartersEnabled,
           terminalFontSize: state.terminalFontSize,
           editorFontSize: state.editorFontSize,
           uiFont: state.uiFont,

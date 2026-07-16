@@ -307,6 +307,12 @@ const SETTINGS_SEARCH_ITEMS: readonly SettingsSearchItem[] = [
     keywords: ['draft', 'message'],
   },
   {
+    id: 'chat.draft-starters',
+    page: 'chat',
+    titleKey: 'settings.openchamber.visual.field.showDraftStarters',
+    keywords: ['starter', 'chip', 'welcome', 'new chat', 'suggestions'],
+  },
+  {
     id: 'chat.composer',
     page: 'chat',
     titleKey: 'settings.openchamber.visual.section.composer',

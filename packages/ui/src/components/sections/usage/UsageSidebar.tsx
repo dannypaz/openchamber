@@ -85,12 +85,17 @@ export const UsageSidebar: React.FC<UsageSidebarProps> = ({ onItemSelect }) => {
 
   const bgClass = 'bg-background';
 
+  const configuredProviders = QUOTA_PROVIDERS.filter((provider) => {
+    const result = results.find((entry) => entry.providerId === provider.id);
+    return result?.configured ?? false;
+  });
+
   return (
     <div className={cn('flex h-full flex-col', bgClass)}>
       <div className="border-b px-3 pt-4 pb-3">
         <h2 className="text-base font-semibold text-foreground mb-3">{t('settings.usage.sidebar.title')}</h2>
         <div className="flex items-center justify-between gap-2">
-          <span className="typography-meta text-muted-foreground">{t('settings.usage.sidebar.total', { count: QUOTA_PROVIDERS.length })}</span>
+          <span className="typography-meta text-muted-foreground">{t('settings.usage.sidebar.total', { count: configuredProviders.length })}</span>
           <div className="flex items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -157,20 +162,22 @@ export const UsageSidebar: React.FC<UsageSidebarProps> = ({ onItemSelect }) => {
       </div>
 
       <ScrollableOverlay outerClassName="flex-1 min-h-0" className="space-y-1 px-3 py-2 overflow-x-hidden">
-        {QUOTA_PROVIDERS.map((provider) => {
+        {configuredProviders.length === 0 && (
+          <p className="typography-meta text-muted-foreground px-1.5 py-1">
+            {t('settings.usage.sidebar.empty.noProvidersConfigured')}
+          </p>
+        )}
+        {configuredProviders.map((provider) => {
           const result = results.find((entry) => entry.providerId === provider.id);
           const percent = getUsagePercent(result?.usage);
           const tone = resolveUsageTone(percent);
           const isSelected = provider.id === selectedProviderId;
-          const configured = result?.configured ?? false;
 
-          const statusStyle = !configured
-            ? { backgroundColor: 'var(--surface-muted-foreground)', opacity: 0.4 }
-            : tone === 'critical'
-              ? { backgroundColor: 'var(--status-error)' }
-              : tone === 'warn'
-                ? { backgroundColor: 'var(--status-warning)' }
-                : { backgroundColor: 'var(--status-success)' };
+          const statusStyle = tone === 'critical'
+            ? { backgroundColor: 'var(--status-error)' }
+            : tone === 'warn'
+              ? { backgroundColor: 'var(--status-warning)' }
+              : { backgroundColor: 'var(--status-success)' };
 
           return (
             <div
@@ -193,9 +200,6 @@ export const UsageSidebar: React.FC<UsageSidebarProps> = ({ onItemSelect }) => {
                 <span className="typography-ui-label font-normal truncate flex-1 min-w-0 text-foreground">
                   {provider.name}
                 </span>
-              {!configured && (
-                <span className="typography-micro text-muted-foreground/60 flex-shrink-0">{t('settings.usage.sidebar.status.notSet')}</span>
-              )}
             </button>
           </div>
           );

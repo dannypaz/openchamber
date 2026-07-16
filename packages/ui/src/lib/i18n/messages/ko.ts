@@ -2344,6 +2344,7 @@ export const dict: Record<I18nKey, string> = {
   'projectActions.actions.addAction': '작업 추가',
   'projectActions.actions.addNewAction': '새 작업 추가',
   'projectActions.actions.autoDiscover': '자동 검색',
+  'projectActions.actions.discoverActionsTooltip': '작업 탐색',
   'projectActions.actions.chooseActionAria': '프로젝트 작업 선택',
   'projectActions.actions.openPreview': '미리보기 열기',
   'projectActions.actions.runNamedAria': '실행 {name}',

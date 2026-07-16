@@ -31,6 +31,7 @@ import {
 import { useI18n } from '@/lib/i18n';
 import { useThemeSystem } from '@/contexts/useThemeSystem';
 import { useDeviceInfo } from '@/lib/device';
+import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/lib/utils';
 import {
     useDraftStarters,
@@ -255,6 +256,7 @@ const AddStarterPicker: React.FC<{
  * ignored.
  */
 export const DraftPresetChips: React.FC<DraftPresetChipsProps> = ({ onSubmit, className }) => {
+    const draftStartersEnabled = useUIStore((state) => state.draftStartersEnabled);
     const { global, project, pinnable, ensureLoaded, addStarter, removeStarter, reorder } = useDraftStarters();
     const { isMobile } = useDeviceInfo();
     const [isDragging, setIsDragging] = React.useState(false);
@@ -293,6 +295,10 @@ export const DraftPresetChips: React.FC<DraftPresetChipsProps> = ({ onSubmit, cl
             reorder(chip.group, activeId, overId);
         }
     };
+
+    if (!draftStartersEnabled) {
+        return null;
+    }
 
     return (
         <DndContext

@@ -240,6 +240,9 @@ export const createSettingsHelpers = (dependencies) => {
       }
       result.draftStarters = starters;
     }
+    if (typeof candidate.draftStartersEnabled === 'boolean') {
+      result.draftStartersEnabled = candidate.draftStartersEnabled;
+    }
 
 
     if (typeof candidate.uiFont === 'string' && candidate.uiFont.length > 0) {

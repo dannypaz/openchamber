@@ -2310,6 +2310,7 @@ export const dict: Record<I18nKey, string> = {
   "projectActions.actions.addAction": "Añadir acción",
   "projectActions.actions.addNewAction": "Añadir nueva acción",
   "projectActions.actions.autoDiscover": "Autodetectar",
+  "projectActions.actions.discoverActionsTooltip": "Descubrir acciones",
   "projectActions.actions.chooseActionAria": "Elegir acción del proyecto",
   "projectActions.actions.openPreview": "Abrir Preview",
   "projectActions.actions.runNamedAria": "Ejecutar {name}",
