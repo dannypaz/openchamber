@@ -552,7 +552,6 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
     homeDirectory,
     worktreeMetadata,
     pinnedSessionIds,
-    gitBranches,
     isVSCode,
   });
 

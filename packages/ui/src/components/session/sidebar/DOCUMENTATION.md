@@ -3,7 +3,7 @@
 ## Refactor result
 
 - `SessionSidebar.tsx` now acts mainly as orchestration; core logic moved to focused hooks/components.
-- Sidebar is now a single multi-project tree: `recent` top section, then projects, then worktrees/archived groups, then sessions.
+- Sidebar is now a single multi-project tree: `recent` top section, then projects, then archived groups, then sessions. Worktree sessions are **not** shown as separate nested groups — `useSessionGrouping` funnels every non-archived session (project root and every worktree) into one flat root group per project, sorted together by pinned/recency. Per-session worktree/branch metadata is still resolved and attached to each `SessionNode` (`node.worktree`); it surfaces once a session's chat is opened (e.g. `WorktreeBranchDisplay`/`GitHeader`), not in the sidebar list.
 - `NavRail` is no longer part of sidebar/navigation flow.
 - Project headers now own root sessions directly; there is no separate rendered `project root` subgroup.
 - Active/hover row styling is text-first; selected sessions use primary text instead of background fills.
@@ -17,7 +17,7 @@
 ## VS Code grouping
 
 - VS Code uses the **same grouped project tree** as web/desktop (project headers + folders + pinned-first ordering), not a separate flat list. Each open VS Code workspace folder is a project header.
-- VS Code groups strictly **by open workspace**: `useSessionGrouping` funnels every non-archived session into the project's root group and emits **no per-worktree subgroups** (worktrees aren't registered in VS Code). `getSessionsForProject` buckets sessions to a workspace by exact directory match, so only sessions whose directory is an open workspace folder appear.
+- VS Code groups strictly **by open workspace**: `getSessionsForProject` buckets sessions to a workspace by exact directory match, so only sessions whose directory is an open workspace folder appear. (Other runtimes now share the same "no per-worktree subgroups" behavior — see above — so this is no longer VS-Code-specific, but VS Code additionally skips worktree metadata resolution entirely since worktrees aren't registered there.)
 - VS Code passes `hideDirectoryControls` (clean workspace headers, no worktree/close chrome) and no longer passes `showOnlyMainWorkspace`/`sharedSessionsOnly`. Folders and pinning therefore work natively, scoped to the workspace root.
 
 ## File summaries
@@ -29,7 +29,7 @@
 - `SidebarFooter.tsx`: Bottom-of-sidebar footer with the GitHub account control (leftmost, when connected) plus icon-only settings, shortcuts, and about actions.
 - `SidebarGitHubAccountMenu.tsx`: Bottom-of-sidebar GitHub avatar control; opens an upward account-switcher dropdown when multiple accounts are connected, otherwise renders a static avatar. Moved here from the top-right header (`Header.tsx`'s former `DesktopGitHubControl`) so identity/account controls live at the bottom of the sidebar, matching common app conventions.
 - `SidebarProjectsList.tsx`: Main scrollable tree renderer for projects, root sessions, worktrees/groups, and empty/search states.
-- `SessionGroupSection.tsx`: Renders a single worktree/archived group, collapse/expand, folder subtree, and group-level controls.
+- `SessionGroupSection.tsx`: Renders a single group (project root or archived), collapse/expand, folder subtree, and group-level controls. The root group renders headerless (`hideGroupLabel`); only the archived group renders a visible header/collapse chrome.
 - `SessionNodeItem.tsx`: Renders one session row/tree node with inline metadata, menu actions, minimal/default variants, and nested children.
 - `ConfirmDialogs.tsx`: Shared confirm dialog wrappers for session delete and folder delete flows.
 - `sortableItems.tsx`: DnD sortable wrappers for project and group ordering plus project-row action affordances.
