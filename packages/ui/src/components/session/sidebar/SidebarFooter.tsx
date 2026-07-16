@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from "@/components/icon/Icon";
 import { useI18n } from '@/lib/i18n';
+import { SidebarGitHubAccountMenu } from '@/components/session/sidebar/SidebarGitHubAccountMenu';
+import type { GitHubAuthStatus } from '@/lib/api/types';
 
 type Props = {
   onOpenSettings: () => void;
@@ -11,6 +13,12 @@ type Props = {
   onOpenUpdate: () => void;
   showRuntimeButtons?: boolean;
   showUpdateButton?: boolean;
+  githubAuthStatus?: GitHubAuthStatus | null;
+  githubAccounts?: Array<NonNullable<GitHubAuthStatus['accounts']>[number]>;
+  githubAvatarUrl?: string | null;
+  githubLogin?: string | null;
+  isSwitchingGitHubAccount?: boolean;
+  onSwitchGitHubAccount?: (accountId: string) => Promise<void>;
 };
 
 const footerButtonClassName = 'inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-interactive-hover/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50';
@@ -22,15 +30,31 @@ export function SidebarFooter({
   onOpenUpdate,
   showRuntimeButtons = true,
   showUpdateButton = true,
+  githubAuthStatus = null,
+  githubAccounts = [],
+  githubAvatarUrl = null,
+  githubLogin = null,
+  isSwitchingGitHubAccount = false,
+  onSwitchGitHubAccount,
 }: Props): React.ReactNode {
   const { t } = useI18n();
 
-  if (!showRuntimeButtons && !showUpdateButton) {
+  if (!showRuntimeButtons && !showUpdateButton && !githubAuthStatus?.connected) {
     return null;
   }
 
   return (
     <div className="flex shrink-0 items-center justify-start gap-1 px-2.5 py-2">
+      {githubAuthStatus?.connected && onSwitchGitHubAccount ? (
+        <SidebarGitHubAccountMenu
+          githubAuthStatus={githubAuthStatus}
+          githubAccounts={githubAccounts}
+          githubAvatarUrl={githubAvatarUrl}
+          githubLogin={githubLogin}
+          isSwitchingGitHubAccount={isSwitchingGitHubAccount}
+          onSwitchAccount={onSwitchGitHubAccount}
+        />
+      ) : null}
       {showRuntimeButtons ? (
         <>
           <Tooltip>

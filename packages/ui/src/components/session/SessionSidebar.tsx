@@ -80,6 +80,8 @@ import {
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 import { useGitHubAuthStore } from '@/stores/useGitHubAuthStore';
 import { subscribeOpenchamberEvents } from '@/lib/openchamberEvents';
+import { runtimeFetch } from '@/lib/runtime-fetch';
+import type { GitHubAuthStatus } from '@/lib/api/types';
 
 const PROJECT_COLLAPSE_STORAGE_KEY = 'oc.sessions.projectCollapse';
 const GROUP_ORDER_STORAGE_KEY = 'oc.sessions.groupOrder';
@@ -964,6 +966,42 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   const { github } = useRuntimeAPIs();
   const githubAuthStatus = useGitHubAuthStore((state) => state.status);
   const githubAuthChecked = useGitHubAuthStore((state) => state.hasChecked);
+  const setGitHubAuthStatus = useGitHubAuthStore((state) => state.setStatus);
+  const githubAvatarUrl = githubAuthStatus?.connected ? (githubAuthStatus.user?.avatarUrl ?? null) : null;
+  const githubLogin = githubAuthStatus?.connected ? (githubAuthStatus.user?.login ?? null) : null;
+  const githubAccounts = githubAuthStatus?.accounts ?? [];
+  const [isSwitchingGitHubAccount, setIsSwitchingGitHubAccount] = React.useState(false);
+  const handleGitHubAccountSwitch = React.useCallback(async (accountId: string) => {
+    if (!accountId || isSwitchingGitHubAccount) return;
+    setIsSwitchingGitHubAccount(true);
+    try {
+      const payload = github
+        ? await github.authActivate(accountId)
+        : await (async () => {
+          const response = await runtimeFetch('/api/github/auth/activate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            },
+            body: JSON.stringify({ accountId }),
+          });
+          const body = (await response.json().catch(() => null)) as
+            | (GitHubAuthStatus & { error?: string })
+            | null;
+          if (!response.ok || !body) {
+            throw new Error(body?.error || response.statusText);
+          }
+          return body;
+        })();
+
+      setGitHubAuthStatus(payload);
+    } catch (error) {
+      console.error('Failed to switch GitHub account:', error);
+    } finally {
+      setIsSwitchingGitHubAccount(false);
+    }
+  }, [isSwitchingGitHubAccount, github, setGitHubAuthStatus]);
   const gitRepoStatus = useGitRepoStatusMap(normalizedProjectPaths);
   const ensurePrStatusEntry = useGitHubPrStatusStore((state) => state.ensureEntry);
   const setPrStatusParams = useGitHubPrStatusStore((state) => state.setParams);
@@ -1702,6 +1740,12 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         onOpenUpdate={handleOpenUpdateDialog}
         showRuntimeButtons={!isVSCode}
         showUpdateButton={showSidebarUpdateButton}
+        githubAuthStatus={githubAuthStatus}
+        githubAccounts={githubAccounts}
+        githubAvatarUrl={githubAvatarUrl}
+        githubLogin={githubLogin}
+        isSwitchingGitHubAccount={isSwitchingGitHubAccount}
+        onSwitchGitHubAccount={handleGitHubAccountSwitch}
       />
 
       <UpdateDialog
