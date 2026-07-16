@@ -150,10 +150,19 @@ const initializeSessionForWorktree = (sessionId: string, metadata: {
 };
 
 
-const createInstantWorktreeDraft = async (options?: {
-  initialPrompt?: string;
-  title?: string;
-}): Promise<string | null> => {
+type DraftWorktreeArgs = {
+  preferredName: string;
+  mode: 'new' | 'existing';
+  branchName?: string;
+  existingBranch?: string;
+  worktreeName?: string;
+  startRef?: string;
+};
+
+const runCreateDraftWorktree = async (
+  worktreeArgs: DraftWorktreeArgs,
+  options?: { initialPrompt?: string; title?: string },
+): Promise<string | null> => {
   if (isCreatingWorktreeSession) {
     return null;
   }
@@ -211,12 +220,11 @@ const createInstantWorktreeDraft = async (options?: {
       });
     }
 
-    const preferredName = generateBranchName();
-
     const preview = await previewGitWorktree(projectRef.path, {
-      mode: 'new',
-      branchName: preferredName,
-      worktreeName: preferredName,
+      mode: worktreeArgs.mode,
+      ...(worktreeArgs.branchName ? { branchName: worktreeArgs.branchName } : {}),
+      ...(worktreeArgs.existingBranch ? { existingBranch: worktreeArgs.existingBranch } : {}),
+      ...(worktreeArgs.worktreeName ? { worktreeName: worktreeArgs.worktreeName } : {}),
     }).catch(() => null);
 
     // Refine draft target once we know the actual worktree path from the preview.
@@ -235,10 +243,7 @@ const createInstantWorktreeDraft = async (options?: {
 
     const setupCommands = await getWorktreeSetupCommands(projectRef);
     const metadata = await createWorktreeWithDefaults(projectRef, {
-      preferredName,
-      mode: 'new',
-      branchName: preferredName,
-      worktreeName: preferredName,
+      ...worktreeArgs,
       setupCommands,
       returnAfterDirectoryCreated: true,
     });
@@ -273,6 +278,17 @@ const createInstantWorktreeDraft = async (options?: {
   }
 };
 
+const createInstantWorktreeDraft = async (options?: {
+  initialPrompt?: string;
+  title?: string;
+}): Promise<string | null> => {
+  const preferredName = generateBranchName();
+  return runCreateDraftWorktree(
+    { preferredName, mode: 'new', branchName: preferredName, worktreeName: preferredName },
+    options,
+  );
+};
+
 /**
  * Create a new worktree and open a draft scoped to it.
  * 
@@ -283,10 +299,42 @@ export async function createWorktreeSession(): Promise<string | null> {
 }
 
 /**
- * Check if a worktree session is currently being created.
+ * Attach a draft to a worktree for an existing local branch that doesn't
+ * have one yet, creating that worktree if needed. Never checks out the
+ * branch in the shared project root.
  */
-export async function createWorktreeDraft(options?: { initialPrompt?: string; title?: string }): Promise<string | null> {
-  return createInstantWorktreeDraft(options);
+export async function createWorktreeDraftForExistingBranch(
+  branchName: string,
+  options?: { initialPrompt?: string; title?: string },
+): Promise<string | null> {
+  const trimmed = branchName.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return runCreateDraftWorktree(
+    { preferredName: trimmed, mode: 'existing', existingBranch: trimmed, worktreeName: trimmed },
+    options,
+  );
+}
+
+/**
+ * Create a new worktree for a brand-new, user-named branch and attach a
+ * draft to it. Defaults the start point to HEAD when omitted.
+ */
+export async function createWorktreeDraftForNewBranch(
+  branchName: string,
+  startPoint?: string,
+  options?: { initialPrompt?: string; title?: string },
+): Promise<string | null> {
+  const trimmed = branchName.trim();
+  if (!trimmed) {
+    toast.error('Branch name is required');
+    return null;
+  }
+  return runCreateDraftWorktree(
+    { preferredName: trimmed, mode: 'new', branchName: trimmed, worktreeName: trimmed, startRef: startPoint },
+    options,
+  );
 }
 
 /**
