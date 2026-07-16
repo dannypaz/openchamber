@@ -40,6 +40,7 @@ import { DiffViewToggle, type DiffViewMode } from '../DiffViewToggle';
 import { MinDurationShineText } from './MinDurationShineText';
 import { ToolRevealOnMount } from './ToolRevealOnMount';
 import { getToolIcon } from './toolPresentation';
+import { ToolStatusBadge } from './ToolStatusBadge';
 import { useDurationTickerNow } from './useDurationTicker';
 import {
     buildTaskSummaryEntriesFromSession,
@@ -1065,12 +1066,16 @@ const TaskSummaryEntryRow = React.memo(({
     const label = getTaskSummaryLabel(entry);
     const hasLabel = label.trim().length > 0;
     const status = entry.state?.status;
+    const isEntryFinalized = status === 'completed' || status === 'error' || status === 'aborted' || status === 'failed' || status === 'timeout' || status === 'cancelled';
     const displayName = getToolMetadata(toolName).displayName;
 
     return (
         <ToolRevealOnMount animate={animateTailText} wipe>
             <div className={cn('flex gap-2 min-w-0 w-full', isMobile ? 'items-start' : 'items-center')}>
-                <span className="flex-shrink-0 text-foreground/80">{getToolIcon(toolName)}</span>
+                <span className="relative flex-shrink-0 text-foreground/80">
+                    {getToolIcon(toolName)}
+                    <ToolStatusBadge isRunning={!isEntryFinalized} isSuccess={status === 'completed'} />
+                </span>
                 <span
                     className="typography-meta text-foreground/80 flex-shrink-0"
                     style={{ color: 'var(--tools-title)' }}
@@ -2328,6 +2333,7 @@ const ToolPartContent: React.FC<ToolPartProps> = ({
                             style={iconStyle}
                         >
                             {getToolIcon(normalizedPartTool || part.tool)}
+                            <ToolStatusBadge isRunning={isActive} isSuccess={status === 'completed'} />
                         </div>
                         {}
                         <div
