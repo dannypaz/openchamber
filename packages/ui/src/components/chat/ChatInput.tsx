@@ -82,6 +82,7 @@ import { useCommandsStore } from '@/stores/useCommandsStore';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 import { useEffectiveDirectory } from '@/hooks/useEffectiveDirectory';
 import { createWorktreeDraftForExistingBranch, createWorktreeDraftForNewBranch } from '@/lib/worktreeSessionCreator';
+import { createBranch as createGitBranch } from '@/lib/gitApi';
 import { buildSessionTargetOptions } from '@/sync/session-worktree-contract';
 import { usePermissionStore } from '@/stores/permissionStore';
 import { togglePermissionAutoAccept } from './permissionAutoAccept';
@@ -1040,13 +1041,17 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     }, []);
     const [mobileDictationActive, setMobileDictationActive] = React.useState(false);
     const [mobileAttachMenuOpen, setMobileAttachMenuOpen] = React.useState(false);
-    const [mobileDraftPicker, setMobileDraftPicker] = React.useState<'project' | 'branch' | 'new-branch' | null>(null);
+    const [mobileDraftPicker, setMobileDraftPicker] = React.useState<'project' | 'branch' | 'new-branch' | 'new-plain-branch' | null>(null);
     const [mobileDraftPickerQuery, setMobileDraftPickerQuery] = React.useState('');
     const [mobileNewBranchName, setMobileNewBranchName] = React.useState('');
+    const [mobileNewPlainBranchName, setMobileNewPlainBranchName] = React.useState('');
     const [branchDropdownOpen, setBranchDropdownOpen] = React.useState(false);
     const [branchDropdownQuery, setBranchDropdownQuery] = React.useState('');
     const [newBranchInputOpen, setNewBranchInputOpen] = React.useState(false);
     const [newBranchDraftName, setNewBranchDraftName] = React.useState('');
+    const [newPlainBranchInputOpen, setNewPlainBranchInputOpen] = React.useState(false);
+    const [newPlainBranchDraftName, setNewPlainBranchDraftName] = React.useState('');
+    const [isCreatingPlainBranch, setIsCreatingPlainBranch] = React.useState(false);
     // True while ANY MobileOverlayPanel is open (sessions sheet, model/agent
     // panels, pickers...). Opening one closes the keyboard, which must not
     // collapse the composer into the pill under the overlay.
@@ -4162,6 +4167,30 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         void createWorktreeDraftForNewBranch(branchName);
     }, []);
 
+    // Creates a plain local branch without checking it out or creating a
+    // worktree/session for it. The branch simply becomes selectable later
+    // from the Branches group (see handleSelectExistingBranch), which is
+    // the only path that attaches a worktree.
+    const handleCreatePlainBranch = React.useCallback(async (branchName: string) => {
+        const trimmed = branchName.trim();
+        if (!trimmed || !selectedDraftProjectPath || isCreatingPlainBranch) {
+            return;
+        }
+        setIsCreatingPlainBranch(true);
+        try {
+            await createGitBranch(selectedDraftProjectPath, trimmed);
+            await fetchBranches(selectedDraftProjectPath, runtimeGit);
+            setNewPlainBranchDraftName('');
+            setNewPlainBranchInputOpen(false);
+        } catch (error) {
+            toast.error(t('chat.chatInput.toast.createBranchFailed'), {
+                description: error instanceof Error ? error.message : undefined,
+            });
+        } finally {
+            setIsCreatingPlainBranch(false);
+        }
+    }, [fetchBranches, isCreatingPlainBranch, runtimeGit, selectedDraftProjectPath, t]);
+
     const renderProjectLabelWithIcon = React.useCallback((project: {
         id: string;
         path: string;
@@ -5082,25 +5111,64 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                                     </div>
                                                 ) : null}
                                             </CommandGroup>
-                                            {branchOnlyOptions.length > 0 ? (
-                                                <CommandGroup heading={t('chat.chatInput.branches')}>
-                                                    {(branchDropdownQuery.trim()
-                                                        ? rankedBranchOnlyOptions.matching.map((branch) => branch.value)
-                                                        : rankedBranchOnlyOptions.otherLocal.slice(0, 5)
-                                                    ).map((branch) => (
-                                                        <CommandItem
-                                                            key={branch}
-                                                            value={branch}
-                                                            onSelect={() => {
-                                                                handleSelectExistingBranch(branch);
-                                                                setBranchDropdownOpen(false);
+                                            <CommandGroup
+                                                heading={
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span>{t('chat.chatInput.branches')}</span>
+                                                        {!newPlainBranchInputOpen && (
+                                                            <button
+                                                                type="button"
+                                                                className="text-muted-foreground hover:text-foreground cursor-pointer"
+                                                                onPointerDown={(e) => { e.stopPropagation(); }}
+                                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setNewPlainBranchInputOpen(true); }}
+                                                                aria-label={t('chat.chatInput.branchNew')}
+                                                            >
+                                                                <Icon name="add" className="size-3.5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                }
+                                            >
+                                                {(branchDropdownQuery.trim()
+                                                    ? rankedBranchOnlyOptions.matching.map((branch) => branch.value)
+                                                    : rankedBranchOnlyOptions.otherLocal.slice(0, 5)
+                                                ).map((branch) => (
+                                                    <CommandItem
+                                                        key={branch}
+                                                        value={branch}
+                                                        onSelect={() => {
+                                                            handleSelectExistingBranch(branch);
+                                                            setBranchDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <span className="min-w-0 flex-1 truncate">{branch}</span>
+                                                    </CommandItem>
+                                                ))}
+                                                {newPlainBranchInputOpen ? (
+                                                    <div className="flex items-center gap-1.5 px-2 py-1.5">
+                                                        <Input
+                                                            autoFocus
+                                                            value={newPlainBranchDraftName}
+                                                            onChange={(e) => setNewPlainBranchDraftName(e.target.value)}
+                                                            placeholder={t('chat.chatInput.worktreeNewBranchPlaceholder')}
+                                                            aria-label={t('chat.chatInput.worktreeNewBranchAria')}
+                                                            className="h-7 typography-meta"
+                                                            disabled={isCreatingPlainBranch}
+                                                            onKeyDown={(e) => {
+                                                                e.stopPropagation();
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    void handleCreatePlainBranch(newPlainBranchDraftName);
+                                                                } else if (e.key === 'Escape') {
+                                                                    e.preventDefault();
+                                                                    setNewPlainBranchInputOpen(false);
+                                                                    setNewPlainBranchDraftName('');
+                                                                }
                                                             }}
-                                                        >
-                                                            <span className="min-w-0 flex-1 truncate">{branch}</span>
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            ) : null}
+                                                        />
+                                                    </div>
+                                                ) : null}
+                                            </CommandGroup>
                                             {selectedDraftDirectory && !selectedDraftBranchIsKnown ? (
                                                 <CommandGroup>
                                                     <CommandItem
@@ -5941,11 +6009,18 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                         {worktreeBranchOptions
                                             .filter((option) => matches(option.label))
                                             .map((option) => renderRow(option.value, `${option.pending ? '⏳ ' : ''}${option.label}`))}
-                                        {branchOnlyOptions.length > 0 ? (
-                                            <div className="px-2 pb-1 pt-2 text-muted-foreground typography-meta">
-                                                {t('chat.chatInput.branches')}
-                                            </div>
-                                        ) : null}
+                                        <div className="flex items-center justify-between px-2 pb-1 pt-2">
+                                            <span className="text-muted-foreground typography-meta">{t('chat.chatInput.branches')}</span>
+                                            <button
+                                                type="button"
+                                                className="cursor-pointer text-muted-foreground typography-meta hover:text-foreground"
+                                                onClick={() => {
+                                                    setMobileDraftPicker('new-plain-branch');
+                                                }}
+                                            >
+                                                {t('chat.chatInput.branchNew')}
+                                            </button>
+                                        </div>
                                         {branchOnlyOptions
                                             .filter((option) => matches(option.label))
                                             .map((option) => (
@@ -6003,6 +6078,45 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                             }}
                         >
                             {t('chat.chatInput.worktreeNew')}
+                        </Button>
+                    </div>
+                </MobileOverlayPanel>
+                <MobileOverlayPanel
+                    open={mobileDraftPicker === 'new-plain-branch'}
+                    title={t('chat.chatInput.draftPicker.newPlainBranchTitle')}
+                    onClose={() => setMobileDraftPicker(null)}
+                >
+                    <div className="flex flex-col gap-3 px-3 pb-4 pt-1">
+                        <Input
+                            autoFocus
+                            value={mobileNewPlainBranchName}
+                            onChange={(event) => setMobileNewPlainBranchName(event.target.value)}
+                            placeholder={t('chat.chatInput.worktreeNewBranchPlaceholder')}
+                            aria-label={t('chat.chatInput.worktreeNewBranchAria')}
+                            className="h-9"
+                            disabled={isCreatingPlainBranch}
+                            onKeyDown={(event) => {
+                                if (event.key !== 'Enter') return;
+                                const name = mobileNewPlainBranchName.trim();
+                                if (!name) return;
+                                setMobileDraftPicker(null);
+                                setMobileNewPlainBranchName('');
+                                void handleCreatePlainBranch(name);
+                            }}
+                        />
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={!mobileNewPlainBranchName.trim() || isCreatingPlainBranch}
+                            onClick={() => {
+                                const name = mobileNewPlainBranchName.trim();
+                                if (!name) return;
+                                setMobileDraftPicker(null);
+                                setMobileNewPlainBranchName('');
+                                void handleCreatePlainBranch(name);
+                            }}
+                        >
+                            {t('chat.chatInput.branchNew')}
                         </Button>
                     </div>
                 </MobileOverlayPanel>
