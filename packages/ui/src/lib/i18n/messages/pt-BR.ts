@@ -1361,6 +1361,8 @@ export const dict: Record<I18nKey, string> = {
   "sessions.sidebar.footer.github.accountsTitle": "Contas de GitHub",
   "sessions.sidebar.footer.github.accountSource.oauth": "OAuth",
   "sessions.sidebar.footer.github.accountSource.cli": "CLI",
+  "header.instanceSwitcher.openAria": "Alternar instância (atual: {current})",
+  "header.instanceSwitcher.tooltip": "Instância: {current}",
   "header.services.openWithCurrent": "Abrir instância, uso e MCP (atual: {current})",
   "header.services.open": "Abrir serviços, uso e MCP",
   "header.services.tooltip.currentInstanceWithShortcuts": "Instância atual: {current} ({toggle}; próxima aba {nextTab})",

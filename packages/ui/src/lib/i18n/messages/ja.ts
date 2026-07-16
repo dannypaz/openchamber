@@ -1379,6 +1379,8 @@ export const dict: Record<I18nKey, string> = {
   'sessions.sidebar.footer.github.accountsTitle': 'GitHubアカウント',
   'sessions.sidebar.footer.github.accountSource.oauth': 'OAuth',
   'sessions.sidebar.footer.github.accountSource.cli': 'CLI',
+  'header.instanceSwitcher.openAria': 'インスタンスを切り替え（現在: {current}）',
+  'header.instanceSwitcher.tooltip': 'インスタンス: {current}',
   'header.services.openWithCurrent': 'インスタンス、使用量、MCPを開く（現在: {current}）',
   'header.services.open': 'サービス、使用量、MCPを開く',
   'header.services.tooltip.currentInstanceWithShortcuts': '現在のインスタンス: {current}（{toggle}、次のタブ {nextTab}）',

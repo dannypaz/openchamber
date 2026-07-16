@@ -1383,6 +1383,8 @@ export const dict = {
   'sessions.sidebar.footer.github.accountsTitle': 'GitHub Accounts',
   'sessions.sidebar.footer.github.accountSource.oauth': 'OAuth',
   'sessions.sidebar.footer.github.accountSource.cli': 'CLI',
+  'header.instanceSwitcher.openAria': 'Switch instance (current: {current})',
+  'header.instanceSwitcher.tooltip': 'Instance: {current}',
   'header.services.openWithCurrent': 'Open instance, usage and MCP (current: {current})',
   'header.services.open': 'Open services, usage and MCP',
   'header.services.tooltip.currentInstanceWithShortcuts': 'Current instance: {current} ({toggle}; next tab {nextTab})',

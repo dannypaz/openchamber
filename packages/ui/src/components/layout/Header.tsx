@@ -482,6 +482,76 @@ const DesktopServicesMenu = React.memo(function DesktopServicesMenu({
   );
 });
 
+type LocalInstanceSwitcherProps = {
+  isDesktopApp: boolean;
+  currentInstanceLabel: string;
+  compactCurrentInstanceLabel: string;
+  isOpen: boolean;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  refreshCurrentInstanceLabel: () => Promise<void>;
+};
+
+// Compact instance-switcher chip that sits next to the workspace name, so the
+// header reads [instance] [workspace] [branch]. Local/remote instances are an
+// Electron-only concept, so this renders nothing outside the desktop app —
+// the full instance/usage/mcp menu on the right stays the primary control.
+const LocalInstanceSwitcher = React.memo(function LocalInstanceSwitcher({
+  isDesktopApp,
+  currentInstanceLabel,
+  compactCurrentInstanceLabel,
+  isOpen,
+  setIsOpen,
+  refreshCurrentInstanceLabel,
+}: LocalInstanceSwitcherProps) {
+  const { t } = useI18n();
+
+  if (!isDesktopApp) {
+    return null;
+  }
+
+  return (
+    <DropdownMenu
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open);
+        if (open) {
+          void refreshCurrentInstanceLabel();
+        }
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('header.instanceSwitcher.openAria', { current: currentInstanceLabel })}
+              className="app-region-no-drag mr-1.5 inline-flex h-6 max-w-[8rem] flex-shrink-0 items-center gap-1 rounded-md px-1.5 typography-micro font-medium text-muted-foreground/80 transition-colors hover:bg-interactive-hover/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <Icon name="stack" className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{compactCurrentInstanceLabel}</span>
+              <Icon name="arrow-down-s" className="h-3 w-3 flex-shrink-0 opacity-60" />
+            </button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{t('header.instanceSwitcher.tooltip', { current: currentInstanceLabel })}</p>
+        </TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent
+        align="start"
+        className="w-[min(22rem,calc(100vw-2rem))] max-h-[75vh] overflow-y-auto bg-[var(--surface-elevated)] p-0"
+      >
+        <DesktopHostSwitcherDialog
+          embedded
+          open={isOpen}
+          onOpenChange={() => {}}
+          onHostSwitched={() => setIsOpen(false)}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+});
+
 const isSameContextUsage = (
   a: SessionContextUsage | null,
   b: SessionContextUsage | null,
@@ -720,6 +790,7 @@ export const Header: React.FC<HeaderProps> = ({
   const isSessionSwitcherOpen = useUIStore((state) => state.isSessionSwitcherOpen);
   const [isMobileRateLimitsOpen, setIsMobileRateLimitsOpen] = React.useState(false);
   const [isDesktopServicesOpen, setIsDesktopServicesOpen] = React.useState(false);
+  const [isLocalInstanceSwitcherOpen, setIsLocalInstanceSwitcherOpen] = React.useState(false);
   const [isUsageRefreshSpinning, setIsUsageRefreshSpinning] = React.useState(false);
   const [currentInstanceLabel, setCurrentInstanceLabel] = React.useState('Local');
   const [currentInstanceIsLocal, setCurrentInstanceIsLocal] = React.useState(true);
@@ -1966,6 +2037,14 @@ export const Header: React.FC<HeaderProps> = ({
           TitlebarLeftControls overlay; the header reserves matching left space
           via padding (see headerStyle) when the sidebar is collapsed. */}
       <div className="flex min-w-0 flex-1 items-center">
+        <LocalInstanceSwitcher
+          isDesktopApp={isDesktopApp}
+          currentInstanceLabel={currentInstanceLabel}
+          compactCurrentInstanceLabel={compactCurrentInstanceLabel}
+          isOpen={isLocalInstanceSwitcherOpen}
+          setIsOpen={setIsLocalInstanceSwitcherOpen}
+          refreshCurrentInstanceLabel={refreshCurrentInstanceLabel}
+        />
         <SessionSwitcherDropdown>
           <button
             type="button"

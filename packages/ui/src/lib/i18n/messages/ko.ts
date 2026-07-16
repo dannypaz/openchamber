@@ -1386,6 +1386,8 @@ export const dict: Record<I18nKey, string> = {
   'sessions.sidebar.footer.github.accountsTitle': 'GitHub 계정',
   'sessions.sidebar.footer.github.accountSource.oauth': 'OAuth',
   'sessions.sidebar.footer.github.accountSource.cli': 'CLI',
+  'header.instanceSwitcher.openAria': '인스턴스 전환(현재: {current})',
+  'header.instanceSwitcher.tooltip': '인스턴스: {current}',
   'header.services.openWithCurrent': '인스턴스, 사용량, MCP 열기(현재: {current})',
   'header.services.open': '서비스, 사용량, MCP 열기',
   'header.services.tooltip.currentInstanceWithShortcuts': '현재 인스턴스: {current} ({toggle}; 다음 탭 {nextTab})',

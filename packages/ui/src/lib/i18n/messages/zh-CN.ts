@@ -1349,6 +1349,8 @@ export const dict: Record<I18nKey, string> = {
   'sessions.sidebar.footer.github.accountsTitle': 'GitHub 账户',
   'sessions.sidebar.footer.github.accountSource.oauth': 'OAuth',
   'sessions.sidebar.footer.github.accountSource.cli': 'CLI',
+  'header.instanceSwitcher.openAria': '切换实例（当前：{current}）',
+  'header.instanceSwitcher.tooltip': '实例：{current}',
   'header.services.openWithCurrent': '打开实例、用量和 MCP（当前：{current}）',
   'header.services.open': '打开服务、用量和 MCP',
   'header.services.tooltip.currentInstanceWithShortcuts': '当前实例：{current}（{toggle}；下一标签 {nextTab}）',

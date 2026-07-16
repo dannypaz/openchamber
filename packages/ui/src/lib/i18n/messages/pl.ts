@@ -2163,6 +2163,8 @@ export const dict: Record<I18nKey, string> = {
   'header.services.remoteUpdate.error': 'Nie udało się sprawdzić aktualizacji zdalnej instancji',
   'header.services.remoteUpdate.actions.open': 'Aktualizuj',
   'header.services.open': 'Otwórz instancję, użycie i MCP',
+  'header.instanceSwitcher.openAria': 'Przełącz instancję (bieżąca: {current})',
+  'header.instanceSwitcher.tooltip': 'Instancja: {current}',
   'header.services.openWithCurrent': 'Otwórz instancję, użycie i MCP (bieżąca: {current})',
   'header.services.rateLimits': 'Limity użycia',
   'header.services.refreshRateLimitsAria': 'Odśwież limity użycia',

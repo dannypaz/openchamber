@@ -1361,6 +1361,8 @@ export const dict: Record<I18nKey, string> = {
   "sessions.sidebar.footer.github.accountsTitle": "Облікові записи GitHub",
   "sessions.sidebar.footer.github.accountSource.oauth": "OAuth",
   "sessions.sidebar.footer.github.accountSource.cli": "CLI",
+  "header.instanceSwitcher.openAria": "Переключити інстанс (поточний: {current})",
+  "header.instanceSwitcher.tooltip": "Інстанс: {current}",
   "header.services.openWithCurrent": "Відкрити інстанс, використання та MCP (поточний: {current})",
   "header.services.open": "Відкрити сервіси, використання та MCP",
   "header.services.tooltip.currentInstanceWithShortcuts": "Поточний інстанс: {current} ({toggle}; наступна вкладка {nextTab})",
