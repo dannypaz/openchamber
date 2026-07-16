@@ -6,7 +6,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { updateDesktopSettings } from '@/lib/persistence';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { useOpenInAppsStore } from '@/stores/useOpenInAppsStore';
 import { getRegisteredRuntimeAPIs } from '@/contexts/runtimeAPIRegistry';
+import { isDesktopLocalOriginActive, isDesktopShell } from '@/lib/desktop';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { parseModelIdentifier } from '@/lib/modelIdentifier';
@@ -35,6 +37,17 @@ export const DefaultsSettings: React.FC = () => {
   const showDeletionDialog = useUIStore((state) => state.showDeletionDialog);
   const setShowDeletionDialog = useUIStore((state) => state.setShowDeletionDialog);
   const providers = useConfigStore((state) => state.providers);
+  const selectedOpenInAppId = useOpenInAppsStore((state) => state.selectedAppId);
+  const availableOpenInApps = useOpenInAppsStore((state) => state.availableApps);
+  const initializeOpenInApps = useOpenInAppsStore((state) => state.initialize);
+  const selectOpenInApp = useOpenInAppsStore((state) => state.selectApp);
+  const showOpenInAppSetting = React.useMemo(() => isDesktopShell() && isDesktopLocalOriginActive(), []);
+
+  React.useEffect(() => {
+    if (showOpenInAppSetting) {
+      initializeOpenInApps();
+    }
+  }, [initializeOpenInApps, showOpenInAppSetting]);
 
   const [defaultModel, setDefaultModel] = React.useState<string | undefined>();
   const [defaultVariant, setDefaultVariant] = React.useState<string | undefined>();
@@ -494,6 +507,45 @@ export const DefaultsSettings: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {showOpenInAppSetting ? (
+        <>
+          <div className="mt-6 mb-0.5 px-1">
+            <div className="flex items-center gap-2">
+              <h3 className="typography-ui-header font-medium text-foreground">{t('settings.openchamber.defaults.openInApp.title')}</h3>
+            </div>
+          </div>
+
+          <section className="px-2 pb-2 pt-0 space-y-0">
+            <div className="mt-0 mb-1 typography-meta text-muted-foreground">
+              {t('settings.openchamber.defaults.openInApp.description')}
+            </div>
+
+            <div data-settings-item="sessions.default-open-in-app" className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:gap-8">
+              <div className="flex min-w-0 flex-col sm:w-56 shrink-0">
+                <span className="typography-ui-label text-foreground">{t('settings.openchamber.defaults.field.defaultOpenInApp')}</span>
+              </div>
+              <div className="flex items-center gap-2 sm:w-fit">
+                <Select value={selectedOpenInAppId} onValueChange={(id) => void selectOpenInApp(id)}>
+                  <SelectTrigger
+                    className="w-fit min-w-[160px]"
+                    aria-label={t('settings.openchamber.defaults.field.defaultOpenInAppAria')}
+                  >
+                    <SelectValue>
+                      {availableOpenInApps.find((app) => app.id === selectedOpenInAppId)?.label ?? selectedOpenInAppId}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableOpenInApps.map((app) => (
+                      <SelectItem key={app.id} value={app.id}>{app.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 };

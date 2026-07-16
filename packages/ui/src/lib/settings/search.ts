@@ -350,6 +350,14 @@ const SETTINGS_SEARCH_ITEMS: readonly SettingsSearchItem[] = [
     keywords: ['delete', 'confirmation'],
   },
   {
+    id: 'sessions.default-open-in-app',
+    page: 'sessions',
+    titleKey: 'settings.openchamber.defaults.field.defaultOpenInApp',
+    descriptionKey: 'settings.openchamber.defaults.openInApp.description',
+    keywords: ['finder', 'editor', 'vscode', 'cursor', 'ide', 'open in', 'reveal', 'explorer'],
+    isAvailable: (ctx) => ctx.isDesktopLocalOrigin,
+  },
+  {
     id: 'sessions.small-model',
     page: 'sessions',
     titleKey: 'settings.openchamber.defaults.smallModel.title',
