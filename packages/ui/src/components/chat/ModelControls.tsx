@@ -26,7 +26,7 @@ import { getModelDisplayName as getSharedModelDisplayName } from '@/lib/modelDis
 import { getEditModeColors } from '@/lib/permissions/editModeColors';
 import { cn, fuzzyMatch } from '@/lib/utils';
 import { useContextStore } from '@/stores/contextStore';
-import { useConfigStore } from '@/stores/useConfigStore';
+import { useConfigStore, AUTO_ROUTER_PROVIDER_ID, AUTO_ROUTER_MODEL_ID } from '@/stores/useConfigStore';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useSelectionStore } from '@/sync/selection-store';
 import { useDirectorySync, useSessionMessages } from '@/sync/sync-context';
@@ -692,6 +692,21 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                 return 'model-missing';
             }
 
+            // The Auto sentinel never appears in `providers` — accept it directly
+            // instead of failing the existence lookup below. Not a per-agent pinned
+            // concept in v1, so no saveAgentModelForSession call.
+            if (providerId === AUTO_ROUTER_PROVIDER_ID && modelId === AUTO_ROUTER_MODEL_ID) {
+                if (currentProviderId === providerId && currentModelId === modelId) {
+                    return 'applied';
+                }
+                setProvider(providerId);
+                setModel(modelId);
+                if (currentSessionId) {
+                    saveSessionModelSelection(currentSessionId, providerId, modelId);
+                }
+                return 'applied';
+            }
+
             const provider = providers.find(p => p.id === providerId);
             if (!provider) {
                 return 'provider-missing';
@@ -1259,8 +1274,9 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                 }
                 return;
             }
-            if (!options?.applyVariant) {
-                // Add to recent models on successful selection.
+            if (!options?.applyVariant && providerId !== AUTO_ROUTER_PROVIDER_ID) {
+                // Add to recent models on successful selection. The Auto sentinel
+                // is not a real model and must not show up in Recents.
                 addRecentModel(providerId, modelId);
             }
             setAgentMenuOpen(false);
@@ -1288,6 +1304,9 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
 
     const getCurrentModelDisplayName = () => {
         if (!currentModelId) return t('chat.modelControls.selectModel');
+        if (currentProviderId === AUTO_ROUTER_PROVIDER_ID && currentModelId === AUTO_ROUTER_MODEL_ID) {
+            return t('chat.modelControls.autoModel');
+        }
         const currentModel = models.find((m: ProviderModel) => m.id === currentModelId);
         return getModelDisplayName(currentModel, currentModelId) || t('chat.modelControls.selectModel');
     };
@@ -2304,6 +2323,8 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                                                 {readinessLabel}
                                             </span>
                                         </>
+                                    ) : currentProviderId === AUTO_ROUTER_PROVIDER_ID ? (
+                                        <Icon name="pencil-ai" className={cn(controlIconSize, 'text-primary/60 flex-shrink-0')} />
                                     ) : currentProviderId ? (
                                         <>
                                             <ProviderLogo
@@ -2363,6 +2384,10 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                                 labels={modelPickerLabels}
                                 selectedModel={currentProviderId && currentModelId ? { providerID: currentProviderId, modelID: currentModelId } : null}
                                 hiddenModels={hiddenModels}
+                                showAutoOption
+                                autoOptionProviderID={AUTO_ROUTER_PROVIDER_ID}
+                                autoOptionModelID={AUTO_ROUTER_MODEL_ID}
+                                autoOptionLabel={t('chat.modelControls.autoModel')}
                                 onActiveKeyDown={handleModelPickerKeyDown}
                                 onActiveEntryChange={(entry) => { activeModelPickerEntryRef.current = entry; }}
                                 onVariantKey={handleThinkingVariantKey}

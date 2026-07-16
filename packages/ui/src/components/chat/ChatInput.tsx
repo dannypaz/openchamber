@@ -4,7 +4,7 @@ import { isCapacitorApp } from '@/lib/platform';
 import { Textarea } from '@/components/ui/textarea';
 import { ComposerDictation } from '@/components/dictation/ComposerDictation';
 // sessionStore removed — currentSessionId comes from useSessionUIStore
-import { useConfigStore } from '@/stores/useConfigStore';
+import { useConfigStore, resolveProviderModelSelection, AUTO_ROUTER_PROVIDER_ID, AUTO_ROUTER_MODEL_ID } from '@/stores/useConfigStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useMessageQueueStore, type QueuedMessage } from '@/stores/messageQueueStore';
 import { useAutoReviewStore } from '@/stores/useAutoReviewStore';
@@ -18,6 +18,7 @@ import { useInlineCommentDraftStore, type InlineCommentDraft } from '@/stores/us
 import { useSnippetsStore } from '@/stores/useSnippetsStore';
 import { appendInlineComments } from '@/lib/messages/inlineComments';
 import { renderMagicPrompt } from '@/lib/magicPrompts';
+import { runtimeFetch } from '@/lib/runtime-fetch';
 import { startReviewFlow } from '@/lib/reviewFlow';
 import { getRuntimeKey } from '@/lib/runtime-switch';
 import { ReviewFlowDialog, type ReviewFlowExecution } from '@/components/session/ReviewFlowDialog';
@@ -1120,6 +1121,9 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
     const currentModelId = useConfigStore((state) => state.currentModelId);
     const currentVariant = useConfigStore((state) => state.currentVariant);
     const currentAgentName = useConfigStore((state) => state.currentAgentName);
+    const modelRouterProviders = useConfigStore((state) => state.providers);
+    const modelRouterSettingsDefaultModel = useConfigStore((state) => state.settingsDefaultModel);
+    const modelRouterSettingsDefaultVariant = useConfigStore((state) => state.settingsDefaultVariant);
     const setAgent = useConfigStore((state) => state.setAgent);
     const getVisibleAgents = useConfigStore((state) => state.getVisibleAgents);
     const agents = getVisibleAgents();
@@ -1865,14 +1869,69 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
         }
 
         const capturedSendConfig = queuedOnly ? queuedMessagesToSend[0]?.sendConfig : undefined;
-        const providerIdToSend = capturedSendConfig?.providerID ?? currentProviderId;
-        const modelIdToSend = capturedSendConfig?.modelID ?? currentModelId;
+        let providerIdToSend = capturedSendConfig?.providerID ?? currentProviderId;
+        let modelIdToSend = capturedSendConfig?.modelID ?? currentModelId;
         const agentNameToSend = capturedSendConfig?.agent ?? currentAgentName;
         const variantToSend = capturedSendConfig?.variant ?? currentVariant;
 
         if (!providerIdToSend || !modelIdToSend) {
             console.warn('Cannot send message: provider or model not selected');
             return;
+        }
+
+        // Auto Router sentinel: resolve to a real model with one server round-trip
+        // right before the existing send path runs, so nothing downstream needs to
+        // know Auto was ever selected. Covers both live and queued sends — a message
+        // queued while Auto was selected stores the sentinel in its sendConfig too.
+        if (providerIdToSend === AUTO_ROUTER_PROVIDER_ID && modelIdToSend === AUTO_ROUTER_MODEL_ID) {
+            const textForClassification = queuedOnly
+                ? (queuedMessagesToSend[0]?.content ?? '')
+                : inputSnapshot.message;
+            const routerDirectory = (currentSessionId
+                ? useSessionUIStore.getState().getDirectoryForSession(currentSessionId)
+                : undefined) || currentDirectory || undefined;
+
+            // What the store would have resolved had Auto not been selected —
+            // re-derived inline rather than persisted as a shadow field.
+            const fallback = resolveProviderModelSelection({
+                providers: modelRouterProviders,
+                settingsDefaultModel: modelRouterSettingsDefaultModel,
+                settingsDefaultVariant: modelRouterSettingsDefaultVariant,
+            });
+            const fallbackProviderId = fallback?.providerId ?? '';
+            const fallbackModelId = fallback?.modelId ?? '';
+
+            providerIdToSend = fallbackProviderId;
+            modelIdToSend = fallbackModelId;
+
+            try {
+                const response = await runtimeFetch('/api/openchamber/model-router/resolve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: textForClassification,
+                        directory: routerDirectory,
+                        preferredProviderID: fallbackProviderId || undefined,
+                        defaultAgentModel: fallbackProviderId && fallbackModelId ? `${fallbackProviderId}/${fallbackModelId}` : undefined,
+                    }),
+                });
+                if (response.ok) {
+                    const result = await response.json().catch(() => null) as
+                        | { available?: boolean; providerID?: string; modelID?: string }
+                        | null;
+                    if (result?.available && result.providerID && result.modelID) {
+                        providerIdToSend = result.providerID;
+                        modelIdToSend = result.modelID;
+                    }
+                }
+            } catch (error) {
+                console.warn('Auto Router resolution failed, falling back to the default model:', error);
+            }
+
+            if (!providerIdToSend || !modelIdToSend) {
+                console.warn('Cannot send message: Auto Router could not resolve a model');
+                return;
+            }
         }
 
         // Sending is authoritative: if a question prompt is open, dismiss it
