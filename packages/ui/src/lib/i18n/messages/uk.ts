@@ -2309,6 +2309,7 @@ export const dict: Record<I18nKey, string> = {
   "projectActions.actions.addAction": "Додати дію",
   "projectActions.actions.addNewAction": "Додати нову дію",
   "projectActions.actions.autoDiscover": "Автовиявлення",
+  "projectActions.actions.discoverActionsTooltip": "Виявити дії",
   "projectActions.actions.chooseActionAria": "Вибрати дію проєкту",
   "projectActions.actions.openPreview": "Відкрити Preview",
   "projectActions.actions.runNamedAria": "Запустити {name}",

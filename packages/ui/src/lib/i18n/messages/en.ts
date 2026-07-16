@@ -2343,6 +2343,7 @@ export const dict = {
   'projectActions.actions.addAction': 'Add action',
   'projectActions.actions.addNewAction': 'Add new action',
   'projectActions.actions.autoDiscover': 'Auto-discover',
+  'projectActions.actions.discoverActionsTooltip': 'Discover actions',
   'projectActions.actions.chooseActionAria': 'Choose project action',
   'projectActions.actions.openPreview': 'Open Preview',
   'projectActions.actions.runNamedAria': 'Run {name}',

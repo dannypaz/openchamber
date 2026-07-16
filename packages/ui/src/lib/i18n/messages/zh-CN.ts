@@ -2309,6 +2309,7 @@ export const dict: Record<I18nKey, string> = {
   'projectActions.actions.addAction': '添加操作',
   'projectActions.actions.addNewAction': '添加新操作',
   'projectActions.actions.autoDiscover': '自动发现',
+  'projectActions.actions.discoverActionsTooltip': '发现操作',
   'projectActions.actions.chooseActionAria': '选择项目操作',
   'projectActions.actions.openPreview': '打开 Preview',
   'projectActions.actions.runNamedAria': '运行 {name}',

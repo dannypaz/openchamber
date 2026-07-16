@@ -626,6 +626,9 @@ const applyDesktopUiPreferences = (settings: DesktopSettings) => {
     // so removing it later remains a durable user choice.
     settings.draftStartersCraftGoalAdded = true;
   }
+  if (typeof settings.draftStartersEnabled === 'boolean' && settings.draftStartersEnabled !== store.draftStartersEnabled) {
+    store.setDraftStartersEnabled(settings.draftStartersEnabled);
+  }
   if (typeof settings.terminalFontSize === 'number' && Number.isFinite(settings.terminalFontSize) && settings.terminalFontSize !== store.terminalFontSize) {
     store.setTerminalFontSize(settings.terminalFontSize);
   }
@@ -817,6 +820,9 @@ const sanitizeWebSettings = (payload: unknown): DesktopSettings | null => {
   }
   if (typeof candidate.draftStartersCraftGoalAdded === 'boolean') {
     result.draftStartersCraftGoalAdded = candidate.draftStartersCraftGoalAdded;
+  }
+  if (typeof candidate.draftStartersEnabled === 'boolean') {
+    result.draftStartersEnabled = candidate.draftStartersEnabled;
   }
   if (typeof candidate.showReasoningTraces === 'boolean') {
     result.showReasoningTraces = candidate.showReasoningTraces;

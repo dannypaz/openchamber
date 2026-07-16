@@ -4,8 +4,11 @@ import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { useI18n } from '@/lib/i18n';
 import { useUIStore } from '@/stores/useUIStore';
 
-const SIDEBAR_CONTENT_WIDTH = 280;
-const SIDEBAR_MIN_WIDTH = 280;
+const SIDEBAR_CONTENT_WIDTH = 306;
+// Must stay >= the titlebar-controls overlay's rendered width (window controls +
+// menu/toggle/project-actions buttons, ~302px on Linux with left-side window
+// controls) or that overlay overhangs past the sidebar's own right edge.
+const SIDEBAR_MIN_WIDTH = 306;
 const SIDEBAR_MAX_WIDTH = 500;
 
 interface SidebarProps {

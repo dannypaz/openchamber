@@ -7,6 +7,7 @@ import type { GitHubAuthStatus } from '@/lib/api/types';
 import { useDeviceInfo } from '@/lib/device';
 import { cn } from '@/lib/utils';
 import { openExternalUrl } from '@/lib/url';
+import { copyTextToClipboard } from '@/lib/clipboard';
 import { useI18n } from '@/lib/i18n';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { runtimeFetch } from '@/lib/runtime-fetch';
@@ -34,6 +35,27 @@ type DeviceFlowCompleteResponse =
   | { connected: true; user: GitHubUser; scope?: string }
   | { connected: false; status?: string; error?: string };
 
+// GitHub's device auth response doesn't include `verification_uri_complete` (the
+// RFC 8628 field some providers return with the code pre-embedded), but its
+// verification page does honor a `user_code` query param to pre-fill the field —
+// the same technique GitHub's own CLI uses. Building that URL ourselves means the
+// user doesn't have to copy the code by hand before the browser steals focus.
+const resolveVerificationUrl = (payload: Pick<DeviceFlowStartResponse, 'verificationUri' | 'verificationUriComplete' | 'userCode'>) => {
+  if (payload.verificationUriComplete) {
+    return payload.verificationUriComplete;
+  }
+  if (!payload.userCode) {
+    return payload.verificationUri;
+  }
+  try {
+    const url = new URL(payload.verificationUri);
+    url.searchParams.set('user_code', payload.userCode);
+    return url.toString();
+  } catch {
+    return payload.verificationUri;
+  }
+};
+
 export const GitHubSettings: React.FC = () => {
   const { t } = useI18n();
   const { isMobile } = useDeviceInfo();
@@ -47,6 +69,15 @@ export const GitHubSettings: React.FC = () => {
   const openExternal = React.useCallback(async (url: string) => {
     await openExternalUrl(url);
   }, []);
+
+  const copyUserCode = React.useCallback(async (code: string) => {
+    const result = await copyTextToClipboard(code);
+    if (result.ok) {
+      toast.success(t('settings.github.page.toast.codeCopied'));
+    } else {
+      toast.error(t('settings.github.page.toast.copyCodeFailed'));
+    }
+  }, [t]);
 
   const [isBusy, setIsBusy] = React.useState(false);
   const [flow, setFlow] = React.useState<DeviceFlowStartResponse | null>(null);
@@ -100,8 +131,7 @@ export const GitHubSettings: React.FC = () => {
       setFlow(payload);
       setPollIntervalMs(Math.max(1, payload.interval) * 1000);
 
-      const url = payload.verificationUriComplete || payload.verificationUri;
-      void openExternal(url);
+      void openExternal(resolveVerificationUrl(payload));
     } catch (error) {
       console.error('Failed to start GitHub connect:', error);
       toast.error(t('settings.github.page.toast.startConnectFailed'));
@@ -428,10 +458,25 @@ export const GitHubSettings: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center justify-between gap-3 mt-4">
-            <div className="font-mono text-xl tracking-widest text-foreground bg-[var(--surface-muted)] px-3 py-1.5 rounded-md border border-[var(--interactive-border)]">{flow.userCode}</div>
+            <div className="flex items-center gap-1.5 font-mono text-xl tracking-widest text-foreground bg-[var(--surface-muted)] pl-3 pr-1.5 py-1.5 rounded-md border border-[var(--interactive-border)]">
+              <span>{flow.userCode}</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 shrink-0"
+                    onClick={() => void copyUserCode(flow.userCode)}
+                  >
+                    <Icon name="file-copy" className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent sideOffset={8}>{t('settings.github.page.actions.copyCode')}</TooltipContent>
+              </Tooltip>
+            </div>
             <Button size="sm" asChild>
               <a
-                href={flow.verificationUriComplete || flow.verificationUri}
+                href={resolveVerificationUrl(flow)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -172,6 +172,7 @@ const ChatSectionContent: React.FC = () => {
                 'fileViewerPreview',
                 'followUpBehavior',
                 'persistDraft',
+                'draftStarters',
                 'inputSpellcheck',
             ]}
         />

@@ -56,8 +56,25 @@ export const TitlebarLeftControls: React.FC = () => {
     }
 
     const publishWidth = () => {
-      const width = node.getBoundingClientRect().width;
-      document.documentElement.style.setProperty('--oc-titlebar-controls-width', `${Math.round(width)}px`);
+      // Measure the true visual span across the cluster's own children rather
+      // than the flex parent's own box. WindowsWindowControls (left position)
+      // uses a negative left margin to sit flush against the window edge —
+      // that pulls it outside the parent's own computed box without widening
+      // it, so `node.getBoundingClientRect().width` undercounts by exactly
+      // that margin. Reading each child's rect instead captures the real
+      // left/right extent regardless of which child carries the negative
+      // margin, so the reserved space in SidebarTopBar/Header always fully
+      // covers the rendered cluster.
+      const children = Array.from(node.children);
+      if (children.length === 0) {
+        document.documentElement.style.setProperty('--oc-titlebar-controls-width', '0px');
+        return;
+      }
+      const rects = children.map((child) => child.getBoundingClientRect());
+      const left = Math.min(...rects.map((rect) => rect.left));
+      const right = Math.max(...rects.map((rect) => rect.right));
+      const width = Math.max(0, right - left);
+      document.documentElement.style.setProperty('--oc-titlebar-controls-width', `${Math.ceil(width)}px`);
     };
 
     publishWidth();

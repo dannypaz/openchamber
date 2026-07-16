@@ -205,6 +205,8 @@ export type DesktopSettings = {
   draftStarters?: DraftStarterRef[];
   // One-time migration marker: Craft a Goal was offered in the starter row.
   draftStartersCraftGoalAdded?: boolean;
+  // Whether the draft starter chip row shows on the new-chat welcome screen at all.
+  draftStartersEnabled?: boolean;
 };
 
 type DesktopBridgeGlobal = {
