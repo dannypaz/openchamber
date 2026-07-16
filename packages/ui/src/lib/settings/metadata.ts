@@ -40,6 +40,7 @@ export interface SettingsRuntimeContext {
   isWeb: boolean;
   isDesktop: boolean;
   isMobile: boolean;
+  disableSnippets: boolean;
 }
 
 export interface SettingsPageMeta {
@@ -190,6 +191,7 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
     group: 'general',
     kind: 'split',
     keywords: ['prompt', 'templates', 'multi-run', 'strategy', 'approach'],
+    isAvailable: (ctx) => !ctx.disableSnippets,
   },
 
   { slug: 'notifications', title: 'Notifications', group: 'general', kind: 'single', keywords: ['alerts', 'native', 'summary', 'summarization'], },

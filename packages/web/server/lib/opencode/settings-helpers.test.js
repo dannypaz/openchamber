@@ -100,6 +100,23 @@ describe('settings helpers', () => {
     });
   });
 
+  it('accepts disableSnippets as a persisted shared setting', () => {
+    const helpers = createTestHelpers();
+
+    expect(helpers.sanitizeSettingsUpdate({ disableSnippets: true })).toEqual({
+      disableSnippets: true,
+    });
+    expect(helpers.sanitizeSettingsUpdate({ disableSnippets: false })).toEqual({
+      disableSnippets: false,
+    });
+  });
+
+  it('rejects non-boolean disableSnippets values', () => {
+    const helpers = createTestHelpers();
+
+    expect(helpers.sanitizeSettingsUpdate({ disableSnippets: 'true' })).toEqual({});
+  });
+
   it('accepts desktopMinimizeToTrayEnabled as a persisted shared setting', () => {
     const helpers = createTestHelpers();
 

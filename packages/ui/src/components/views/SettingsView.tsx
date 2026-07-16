@@ -109,10 +109,10 @@ const pageOrder: SettingsPageSlug[] = [
 const SNIPPETS_SETTINGS_ICON = { icon: 'chat-thread' } as const;
 const ADD_PROVIDER_SETTINGS_ID = '__add_provider__';
 
-function buildRuntimeContext(isDesktop: boolean, isMobile: boolean): SettingsRuntimeContext {
+function buildRuntimeContext(isDesktop: boolean, isMobile: boolean, disableSnippets: boolean): SettingsRuntimeContext {
   const isVSCode = isVSCodeRuntime();
   const isWeb = !isDesktop && isWebRuntime();
-  return { isVSCode, isWeb, isDesktop, isMobile };
+  return { isVSCode, isWeb, isDesktop, isMobile, disableSnippets };
 }
 
 function isPageAvailable(page: SettingsPageMeta, ctx: SettingsRuntimeContext): boolean {
@@ -341,7 +341,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose, forceMobile
 
   // keep platform check available for future window chrome tweaks
 
-  const runtimeCtx = React.useMemo(() => buildRuntimeContext(isDesktopApp, isMobile), [isDesktopApp, isMobile]);
+  const settingsDisableSnippets = useConfigStore((s) => s.settingsDisableSnippets);
+  const runtimeCtx = React.useMemo(
+    () => buildRuntimeContext(isDesktopApp, isMobile, settingsDisableSnippets),
+    [isDesktopApp, isMobile, settingsDisableSnippets],
+  );
 
   const visiblePages = React.useMemo(() => {
     const allowedPages = visiblePageSlugs ? new Set<SettingsPageSlug>(visiblePageSlugs) : null;

@@ -642,6 +642,7 @@ export interface SettingsPayload {
   followUpBehavior?: 'steer' | 'queue';
   queueModeEnabled?: boolean;
   gitmojiEnabled?: boolean;
+  disableSnippets?: boolean;
   inputSpellcheckEnabled?: boolean;
   showOpenCodeUpdateNotifications?: boolean;
   openCodeUpdateToastDismissedVersion?: string;

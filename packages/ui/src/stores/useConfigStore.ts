@@ -63,6 +63,7 @@ interface OpenChamberDefaults {
     autoCreateWorktree?: boolean;
     gitmojiEnabled?: boolean;
     defaultFileViewerPreview?: boolean;
+    disableSnippets?: boolean;
     zenModel?: string;
     messageStreamTransport?: 'auto' | 'ws' | 'sse';
     sttProvider?: 'local' | 'openai-compatible';
@@ -98,6 +99,7 @@ const fetchOpenChamberDefaults = async (): Promise<OpenChamberDefaults> => {
                     const defaultAgent = typeof data?.defaultAgent === 'string' ? data.defaultAgent.trim() : '';
                     const gitmojiEnabled = typeof data?.gitmojiEnabled === 'boolean' ? data.gitmojiEnabled : undefined;
                     const defaultFileViewerPreview = typeof data?.defaultFileViewerPreview === 'boolean' ? data.defaultFileViewerPreview : undefined;
+                    const disableSnippets = typeof data?.disableSnippets === 'boolean' ? data.disableSnippets : undefined;
                     const zenModel = typeof data?.zenModel === 'string' ? data.zenModel.trim() : '';
                     const messageStreamTransport =
                         data?.messageStreamTransport === 'ws' || data?.messageStreamTransport === 'sse' || data?.messageStreamTransport === 'auto'
@@ -116,6 +118,7 @@ const fetchOpenChamberDefaults = async (): Promise<OpenChamberDefaults> => {
                         autoCreateWorktree: typeof data?.autoCreateWorktree === 'boolean' ? data.autoCreateWorktree : undefined,
                         gitmojiEnabled,
                         defaultFileViewerPreview,
+                        disableSnippets,
                         zenModel: zenModel.length > 0 ? zenModel : undefined,
                         messageStreamTransport,
                         sttProvider,
@@ -144,6 +147,7 @@ const fetchOpenChamberDefaults = async (): Promise<OpenChamberDefaults> => {
         const defaultAgent = typeof data?.defaultAgent === 'string' ? data.defaultAgent.trim() : '';
         const gitmojiEnabled = typeof data?.gitmojiEnabled === 'boolean' ? data.gitmojiEnabled : undefined;
         const defaultFileViewerPreview = typeof data?.defaultFileViewerPreview === 'boolean' ? data.defaultFileViewerPreview : undefined;
+        const disableSnippets = typeof data?.disableSnippets === 'boolean' ? data.disableSnippets : undefined;
         const zenModel = typeof data?.zenModel === 'string' ? data.zenModel.trim() : '';
         const messageStreamTransport =
             data?.messageStreamTransport === 'ws' || data?.messageStreamTransport === 'sse' || data?.messageStreamTransport === 'auto'
@@ -162,6 +166,7 @@ const fetchOpenChamberDefaults = async (): Promise<OpenChamberDefaults> => {
             autoCreateWorktree: typeof data?.autoCreateWorktree === 'boolean' ? data.autoCreateWorktree : undefined,
             gitmojiEnabled,
             defaultFileViewerPreview,
+            disableSnippets,
             zenModel: zenModel.length > 0 ? zenModel : undefined,
             messageStreamTransport,
             sttProvider,
@@ -995,6 +1000,7 @@ interface ConfigStore {
     settingsAutoCreateWorktree: boolean;
     settingsGitmojiEnabled: boolean;
     settingsDefaultFileViewerPreview: boolean;
+    settingsDisableSnippets: boolean;
     settingsZenModel: string | undefined;
     settingsMessageStreamTransport: 'auto' | 'ws' | 'sse';
     // Voice provider preference ('browser', 'openai', 'openai-compatible', or 'say' for macOS)
@@ -1075,6 +1081,7 @@ interface ConfigStore {
     setSettingsAutoCreateWorktree: (enabled: boolean) => void;
     setSettingsGitmojiEnabled: (enabled: boolean) => void;
     setSettingsDefaultFileViewerPreview: (enabled: boolean) => void;
+    setSettingsDisableSnippets: (enabled: boolean) => void;
     setSettingsZenModel: (model: string | undefined) => void;
     setSettingsMessageStreamTransport: (transport: 'auto' | 'ws' | 'sse') => void;
     getResolvedGitGenerationModel: () => { providerId: string; modelId: string } | null;
@@ -1135,6 +1142,7 @@ export const useConfigStore = create<ConfigStore>()(
                 settingsAutoCreateWorktree: false,
                 settingsGitmojiEnabled: false,
                 settingsDefaultFileViewerPreview: false,
+                settingsDisableSnippets: false,
                 settingsZenModel: undefined,
                 settingsMessageStreamTransport: 'auto',
                 // Voice provider preference - load from localStorage or default to 'browser'
@@ -2047,6 +2055,7 @@ export const useConfigStore = create<ConfigStore>()(
                                     settingsAutoCreateWorktree: openChamberDefaults.autoCreateWorktree ?? false,
                                     settingsGitmojiEnabled: openChamberDefaults.gitmojiEnabled ?? false,
                                     settingsDefaultFileViewerPreview: openChamberDefaults.defaultFileViewerPreview ?? false,
+                                    settingsDisableSnippets: openChamberDefaults.disableSnippets ?? false,
                                     settingsZenModel: resolvedZenModel,
                                     settingsMessageStreamTransport: openChamberDefaults.messageStreamTransport ?? state.settingsMessageStreamTransport ?? 'auto',
                                     sttProvider: openChamberDefaults.sttProvider ?? state.sttProvider,
@@ -2776,6 +2785,10 @@ export const useConfigStore = create<ConfigStore>()(
                     set({ settingsDefaultFileViewerPreview: enabled });
                 },
 
+                setSettingsDisableSnippets: (enabled: boolean) => {
+                    set({ settingsDisableSnippets: enabled });
+                },
+
                 setSettingsZenModel: (model: string | undefined) => {
                     set({ settingsZenModel: model });
                 },
@@ -3298,6 +3311,7 @@ export const useConfigStore = create<ConfigStore>()(
                     settingsAutoCreateWorktree: state.settingsAutoCreateWorktree,
                     settingsGitmojiEnabled: state.settingsGitmojiEnabled,
                     settingsDefaultFileViewerPreview: state.settingsDefaultFileViewerPreview,
+                    settingsDisableSnippets: state.settingsDisableSnippets,
                     settingsZenModel: state.settingsZenModel,
                     settingsMessageStreamTransport: state.settingsMessageStreamTransport,
                     speechRate: state.speechRate,
