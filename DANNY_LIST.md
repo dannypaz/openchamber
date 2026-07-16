@@ -2,10 +2,10 @@
 
 Feature log tracking what shipped in each merged PR.
 
-## Unreleased — Improve sidebar footer layout
+## Unreleased — UI polish: sidebar footer and session metadata
 
-- Sidebar footer now uses `justify-between` layout to separate GitHub account control (left) from settings/shortcuts/about icons (right) for better visual balance.
-- Added max-width constraint (6rem) to the right-side icon group to prevent excessive spacing.
+- Sidebar footer now uses `justify-between` layout to separate GitHub account control (left) from settings/shortcuts/about icons (right) for better visual balance, with a 6rem max-width on the right-side icon group.
+- Reduced spacing between project and branch labels in session list for a more compact, simpler layout.
 
 ## PR #6 — Add default app selection for opening projects on desktop
 

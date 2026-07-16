@@ -561,8 +561,8 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
             </button>
           </form>
           {!isMinimalMode ? (
-            <div className="flex items-center justify-between gap-3 text-muted-foreground/60 min-w-0 overflow-hidden leading-tight" style={{ fontSize: 'calc(var(--text-ui-label) * 0.85)' }}>
-              <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 text-muted-foreground/60 min-w-0 overflow-hidden leading-tight" style={{ fontSize: 'calc(var(--text-ui-label) * 0.85)' }}>
+              <div className="flex min-w-0 items-center gap-1 overflow-hidden">
                 {hasChildren ? <span className="inline-flex items-center justify-center flex-shrink-0">{isExpanded ? <Icon name="arrow-down-s" className="h-3 w-3" /> : <Icon name="arrow-right-s" className="h-3 w-3" />}</span> : null}
                 <span className="flex-shrink-0">{sessionUpdatedLabel}</span>
                 {hasSecondaryProjectLabel ? <span className="truncate">{secondaryMeta?.projectLabel}</span> : null}
@@ -1074,14 +1074,14 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
                     the per-row metadata tooltip is redundant noise there. */}
                 {!isVSCode ? (
                 <TooltipContent side="right" sideOffset={8} className="max-w-xs text-left">
-                  <div className="flex flex-col gap-1 text-left text-xs">
-                    <div className={cn('flex items-center gap-3 text-left text-muted-foreground', secondaryMeta?.projectLabel ? 'justify-between' : 'justify-start')}>
+                  <div className="flex flex-col gap-0.5 text-left text-xs">
+                    <div className={cn('flex items-center gap-2 text-left text-muted-foreground', secondaryMeta?.projectLabel ? 'justify-between' : 'justify-start')}>
                       {secondaryMeta?.projectLabel ? <div className="min-w-0 truncate">{secondaryMeta.projectLabel}</div> : null}
                       <div className="flex-shrink-0">{sessionUpdatedLabel}</div>
                     </div>
                     {secondaryMeta?.branchLabel ? (
-                      <div className="flex items-center gap-3 text-left text-muted-foreground justify-start">
-                        <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                      <div className="flex items-center gap-2 text-left text-muted-foreground justify-start">
+                        <div className="flex min-w-0 items-center gap-1 overflow-hidden">
                           <span className="inline-flex min-w-0 items-center gap-0.5"><Icon name="git-branch" className="h-3 w-3 flex-shrink-0" /><span className="truncate">{secondaryMeta.branchLabel}</span></span>
                         </div>
                       </div>
@@ -1121,8 +1121,8 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
                   </div>
  
                 {!isMinimalMode ? (
-                  <div className="flex items-center justify-between gap-3 text-muted-foreground/60 min-w-0 overflow-hidden leading-tight" style={{ fontSize: 'calc(var(--text-ui-label) * 0.85)' }}>
-                    <div className={cn('flex min-w-0 items-center gap-1.5 overflow-hidden', metadataSubsessionChevron && hasChildren ? 'pl-4' : '')}>
+                  <div className="flex items-center justify-between gap-2 text-muted-foreground/60 min-w-0 overflow-hidden leading-tight" style={{ fontSize: 'calc(var(--text-ui-label) * 0.85)' }}>
+                    <div className={cn('flex min-w-0 items-center gap-1 overflow-hidden', metadataSubsessionChevron && hasChildren ? 'pl-4' : '')}>
                       {sessionGoalGlyph}
                       <span className="flex-shrink-0">{sessionUpdatedLabel}</span>
                       {hasSecondaryProjectLabel ? <span className="truncate">{secondaryMeta?.projectLabel}</span> : null}
