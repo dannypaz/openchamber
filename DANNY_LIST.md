@@ -28,9 +28,11 @@ Feature log tracking what shipped in each merged PR.
 
 ## PR #1 — feat: GitHub device-code UX, Linux polish, and draft starters toggle
 
-- GitHub device flow: copy-to-clipboard button and pre-filled code in the verification URL.
+- GitHub device flow: copy-to-clipboard button for the device code.
+- GitHub device flow: pre-fills the code in the browser via the verification URL.
 - Usage settings now hide providers with no usage/quota data.
-- Linux: fixed titlebar/sidebar overlap, and swapped the Finder reference for Files (Nautilus) in "Open in App".
+- Linux: fixed titlebar/sidebar width overlap.
+- Linux: swapped the Finder reference for Files (Nautilus) in "Open in App".
 - Added a "Show Draft Starters" setting to hide starter-prompt chips on the new-chat screen.
 - Swapped the Auto-discover project icon from search to radar to avoid confusion with session search.
 - Documented the `zlib1g-dev` requirement for AppImage extraction/verify.
