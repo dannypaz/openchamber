@@ -4,47 +4,33 @@ Feature log tracking what shipped in each merged PR.
 
 ## PR #6 — Add default app selection for opening projects on desktop
 
-- New "Open In" section in Defaults Settings for choosing a default app to open projects from OpenChamber, visible only on desktop with local origin access (`isDesktopShell()` + `isDesktopLocalOriginActive()`).
-- Wires into `useOpenInAppsStore` to list available apps and persist the selection; initializes the app list on mount.
-- Settings search entry added (keywords: finder, editor, vscode, cursor, ide, open in, reveal, explorer).
-- Localized title/description/field label/aria copy across all 10 supported languages.
+- New "Open In" section in Defaults Settings to pick a default app for opening projects (desktop-only, requires local origin access). Localized across all supported languages.
 
 ## PR #5 — Add branch selection and creation UI to draft picker
 
-- Draft picker's branch selector replaced with a searchable `Command` dropdown on desktop and a `MobileOverlayPanel` on mobile, instead of a plain `Select`.
-- New `createWorktreeDraftForExistingBranch()` to create a worktree for an existing local branch without checking it out in the project root, and `createWorktreeDraftForNewBranch()` to create one for a user-named new branch.
-- `branchOnlyOptions` filters to local branches that don't already have a worktree and aren't the current project-root checkout; `rankBranchesForQuery()` powers smart search ranking.
-- Common creation logic extracted into `runCreateDraftWorktree()`, shared by the auto-generated, existing-branch, and new-branch flows.
-- New-branch input state resets on dropdown close to avoid mid-entry reopen bugs; both flows guard against an in-flight worktree request or directory override.
-- New "Branches" label and new-branch-creation strings localized across all supported languages.
+- Draft picker's branch selector is now a searchable dropdown (desktop) / overlay panel (mobile) instead of a plain select, with smart search ranking.
+- Supports creating a worktree for an existing local branch or a new user-named branch, alongside the existing auto-generated flow. Localized across all supported languages.
 
 ## PR #4 — Move GitHub account control from header to sidebar footer
 
-- Relocated the GitHub avatar/account-switcher from the desktop header's top-right into the session sidebar footer, alongside the existing settings/shortcuts/about actions (bottom-left profile placement, matching common app conventions).
-- Same account-switching behavior, now shared across web, desktop, VS Code, and mobile via `SessionSidebar`.
+- Relocated the GitHub avatar/account-switcher from the desktop header to the session sidebar footer, alongside settings/shortcuts/about. Same behavior, shared across web, desktop, VS Code, and mobile.
 
 ## PR #3 — docs: add feature log (DANNY_LIST.md)
 
-- Added this file, `DANNY_LIST.md`, as a changelog tracking shipped features per merged PR.
+- Added this file as a changelog tracking shipped features per merged PR.
 
 ## PR #2 — feat: add Auto Router model mode with configurable cheap/frontier tiers
 
-- Cost-aware "Auto" entry in the model picker (mirrors Cursor's Auto mode): routes simple asks to a cheap model and hard asks to a stronger/frontier model, without manually swapping models.
-- New `packages/web/server/lib/model-router/` module; reuses the existing Small Model resolver as both the SIMPLE/COMPLEX classifier and the default cheap-tier model.
-- New `POST /api/openchamber/model-router/resolve` route: classifies one message and returns the resolved `{providerID, modelID}`, wrapped in an external ~2.5s timeout. Classification failure/timeout always fails open to the frontier tier, never to cheap.
-- `AUTO_ROUTER_PROVIDER_ID` / `AUTO_ROUTER_MODEL_ID` sentinel (`"__auto__"`) added to `useConfigStore.ts`.
-- Fixed a persistence bug where `resolveProviderModelSelection`'s `hasProviderModel` gate would silently evict the Auto selection on the next provider-list refresh; same bypass added to `setProvider` and `ModelControls.tsx`'s `tryApplyModelSelection`.
-- Opt-in pinned "Auto" row added to `ModelPickerList.tsx` (chat picker only — settings pickers for default/small models don't offer it).
-- `ChatInput.tsx` resolves the Auto sentinel via one round-trip to the new route right before the existing send path runs, covering both live sends and messages queued while Auto was selected.
-- New settings: `modelRouterCheapOverride` / `modelRouterFrontierOverride` under Session Defaults → Auto Router, mirroring the existing Small Model override fields (desktop settings, server sanitizer, VS Code bridge, settings search registry), localized across all supported locales.
+- Cost-aware "Auto" entry in the model picker (mirrors Cursor's Auto mode): routes simple asks to a cheap model and hard asks to a frontier model automatically.
+- New model-router server module and resolve endpoint; classification failures always fail open to the frontier tier, never to cheap.
+- Fixed a bug where the Auto selection could get silently evicted on provider-list refresh.
+- New cheap/frontier override settings under Session Defaults → Auto Router, localized across all supported locales.
 
 ## PR #1 — feat: GitHub device-code UX, Linux polish, and draft starters toggle
 
-- GitHub device flow: copy-to-clipboard button for the device code.
-- GitHub device flow: pre-fill the code in the browser via `?user_code=` on the verification URL.
-- Usage settings: hide providers with no usage/quota data instead of listing every known provider.
-- Linux: fixed titlebar/sidebar width overlap (measured live via CDP).
-- Linux: swapped the Finder icon/label for Files (Nautilus) in "Open in App".
-- Added a "Show Draft Starters" setting to hide the starter-prompt chips on the new-chat screen, synced via `settings.json`.
-- Swapped the Auto-discover project action icon from search to radar so it isn't confused with session search.
+- GitHub device flow: copy-to-clipboard button and pre-filled code in the verification URL.
+- Usage settings now hide providers with no usage/quota data.
+- Linux: fixed titlebar/sidebar overlap, and swapped the Finder reference for Files (Nautilus) in "Open in App".
+- Added a "Show Draft Starters" setting to hide starter-prompt chips on the new-chat screen.
+- Swapped the Auto-discover project icon from search to radar to avoid confusion with session search.
 - Documented the `zlib1g-dev` requirement for AppImage extraction/verify.
