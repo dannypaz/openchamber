@@ -2826,19 +2826,24 @@ const setupAutoUpdater = () => {
   if (!app.isPackaged) {
     return;
   }
+  const updateChannel = typeof __OPENCHAMBER_UPDATE_CHANNEL__ !== 'undefined'
+    ? __OPENCHAMBER_UPDATE_CHANNEL__
+    : 'stable';
+
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
-  autoUpdater.allowPrerelease = false;
+  autoUpdater.allowPrerelease = updateChannel !== 'stable';
   autoUpdater.fullChangelog = true;
   autoUpdater.disableWebInstaller = false;
   autoUpdater.logger = log;
 
   const testBuild = typeof __OPENCHAMBER_UPDATER_E2E_BUILD__ !== 'undefined'
     && __OPENCHAMBER_UPDATER_E2E_BUILD__ === true;
-  const feed = resolveUpdaterFeed({ testBuild });
+  const feed = resolveUpdaterFeed({ testBuild, updateChannel });
   autoUpdater.setFeedURL(feed);
   log.info('[electron] updater feed configured', {
     provider: feed.provider,
+    channel: updateChannel,
     target: feed.provider === 'github' ? `${feed.owner}/${feed.repo}` : feed.url,
   });
 

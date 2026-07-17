@@ -82,6 +82,15 @@ Running a packaged Linux AppImage requires FUSE (`libfuse.so.2`, typically `libf
 
 Linux updates are supported only when the packaged app is running from a writable AppImage. Update checks, downloads, and installation report an actionable error when `APPIMAGE` is missing, invalid, or read-only; a missing release feed (`latest-linux.yml` 404 before the first Linux publish) is treated as “no update available”. macOS and Windows updater behavior is unchanged. Release builds keep `latest-linux.yml` (x64) and `latest-linux-arm64.yml` separate and validate each manifest against its AppImage before upload. Linux AppImages download full updates (no `.blockmap` differential channel yet).
 
+### Update Channels
+
+Two update channels are published from `dannypaz/openchamber`:
+
+- **`stable`** (default): hand-tagged `v*` releases via `.github/workflows/release.yml`, gated on a matching `CHANGELOG.md` entry.
+- **`main`**: an internal, continuous channel via `.github/workflows/release-main.yml`, triggered on every push to `main` (and manually via `workflow_dispatch`). It has no changelog gate and produces an unsigned macOS arm64 build (ad-hoc self-signed — required for Squirrel.Mac to apply updates, but not notarized, so first launch needs a right-click → Open past Gatekeeper) and a Linux arm64 AppImage. Builds on this channel are best-effort: an occasional failed CI run is expected and acceptable, and it targets internal company use rather than end users.
+
+A packaged build's channel is fixed at bundle time via the `OPENCHAMBER_UPDATE_CHANNEL` env var (see table below), which selects the feed in `updater-feed.mjs` and sets `autoUpdater.allowPrerelease` in `main.mjs`. The two channels use separate update manifests on GitHub Releases (`latest-*.yml` vs `main-*.yml`) so they never interfere with each other, and an app built for one channel never auto-updates onto the other.
+
 ### Updater End-to-End Fixture
 
 A loopback-only updater fixture is available for contributor QA of N-to-N+1 AppImage replacement and restart behavior. It is test infrastructure, not a user-configurable update source. See [`scripts/updater-e2e-fixture.md`](./scripts/updater-e2e-fixture.md) for the controlled test procedure. Unit tests cover feed selection, check failures, no-update results, and fixture generation; actual AppImage replacement and restart remains a manual native N-to-N+1 release boundary because it requires executing two packaged versions on each supported architecture.
@@ -111,6 +120,7 @@ Use an explicit override when testing a different OpenCode CLI build or when a u
 | `OPENCHAMBER_RUNTIME=desktop` | Set by Electron before starting the web server |
 | `OPENCHAMBER_OPENCODE_CLI_VERSION` | Optional packaging override for the bundled OpenCode CLI version; defaults to the pinned root `@opencode-ai/sdk` version |
 | `OPENCHAMBER_TARGET_ARCH` | Explicit desktop package architecture (`x64` or `arm64`); Linux requires it to match the native host |
+| `OPENCHAMBER_UPDATE_CHANNEL` | Packaging-time update channel (`stable` default, or `main`); baked into the bundle by `bundle-main.mjs`, read by `main.mjs` to select the updater feed and `allowPrerelease` |
 | `OPENCHAMBER_DESKTOP_NOTIFY=true` | Enables desktop notification flow in the web server |
 | `OPENCHAMBER_SKIP_API_COMPRESSION=true` | Defaulted by Desktop to reduce local CPU overhead |
 | `OPENCODE_HOST` / `OPENCODE_PORT` / `OPENCODE_SKIP_START` | Connect Desktop to an external OpenCode server instead of starting one locally |
