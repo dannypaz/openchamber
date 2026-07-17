@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { runtimeFetch } from '@/lib/runtime-fetch';
 
 import { toast } from '@/components/ui';
@@ -228,6 +229,24 @@ const DEFAULT_IGNORED_DIR_NAMES = new Set(['node_modules']);
 
 type FileStatus = 'open' | 'modified' | 'git-modified' | 'git-added' | 'git-deleted';
 
+// Above this many visible rows, the plain recursive nested-<ul> tree mounts
+// enough DOM nodes to notice (thousands, for a large repo with several
+// expanded folders) — switch to a flattened, virtualized rendering (mirrors
+// MessageList's @tanstack/react-virtual threshold pattern). Below it, the
+// existing recursive renderer is unchanged and carries no regression risk.
+const FILE_TREE_VIRTUALIZE_THRESHOLD = 150;
+const FILE_TREE_INDENT_PX = 24;
+const FILE_TREE_ESTIMATED_ROW_HEIGHT = 28;
+
+// One row of the flattened tree, in the same depth-first order `renderTree`
+// walks it. `pathIsLast[i]` records whether the ancestor at depth `i` (with
+// `pathIsLast[depth]` being this row's own isLast) was the last child among
+// its own siblings — that chain is what the connector-guide rendering needs
+// to reproduce the nested-<ul> border-based guide lines without recursion.
+type TreeRow =
+  | { kind: 'node'; key: string; node: FileNode; depth: number; pathIsLast: boolean[] }
+  | { kind: 'error'; key: string; depth: number; dirPath: string; message: string; pathIsLast: boolean[] };
+
 const FileStatusDot: React.FC<{ status: FileStatus }> = ({ status }) => {
   const color = {
     open: 'var(--status-info)',
@@ -383,9 +402,9 @@ interface FileRowProps {
     canReveal: boolean;
   };
   downloadFile?: (path: string) => Promise<void>;
-  contextMenuPath: string | null;
+  isContextMenuOpen: boolean;
   setContextMenuPath: (path: string | null) => void;
-  rightClickMenuPath: string | null;
+  isRightClickMenuOpen: boolean;
   setRightClickMenuPath: (path: string | null) => void;
   onSelect: (node: FileNode) => void;
   onToggle: (path: string) => void;
@@ -393,7 +412,7 @@ interface FileRowProps {
   onOpenDialog: (type: 'createFile' | 'createFolder' | 'rename' | 'delete', data: { path: string; name?: string; type?: 'file' | 'directory' }) => void;
 }
 
-const FileRow: React.FC<FileRowProps> = ({
+const FileRow = React.memo(({
   node,
   root,
   isExpanded,
@@ -404,15 +423,15 @@ const FileRow: React.FC<FileRowProps> = ({
   badge,
   permissions,
   downloadFile,
-  contextMenuPath,
+  isContextMenuOpen,
   setContextMenuPath,
-  rightClickMenuPath,
+  isRightClickMenuOpen,
   setRightClickMenuPath,
   onSelect,
   onToggle,
   onRevealPath,
   onOpenDialog,
-}) => {
+}: FileRowProps) => {
   const { t } = useI18n();
   const isDir = node.type === 'directory';
   const { canRename, canCreateFile, canCreateFolder, canDelete, canReveal } = permissions;
@@ -523,7 +542,7 @@ const FileRow: React.FC<FileRowProps> = ({
   );
 
   return (
-    <ContextMenu open={rightClickMenuPath === node.path} onOpenChange={(open) => setRightClickMenuPath(open ? node.path : null)}>
+    <ContextMenu open={isRightClickMenuOpen} onOpenChange={(open) => setRightClickMenuPath(open ? node.path : null)}>
       <ContextMenuTrigger render={<div className="group relative flex items-center" onContextMenu={!isMobile ? handleContextMenu : undefined} />}>
       <button
         type="button"
@@ -563,7 +582,7 @@ const FileRow: React.FC<FileRowProps> = ({
           alwaysShowActions ? "opacity-100" : "opacity-0 focus-within:opacity-100 group-hover:opacity-100"
         )}>
           <DropdownMenu
-            open={contextMenuPath === node.path}
+            open={isContextMenuOpen}
             onOpenChange={(open) => setContextMenuPath(open ? node.path : null)}
           >
             <DropdownMenuTrigger asChild>
@@ -588,7 +607,7 @@ const FileRow: React.FC<FileRowProps> = ({
       </ContextMenuContent>
     </ContextMenu>
   );
-};
+});
 
 interface DialogsProps {
   activeDialog: 'createFile' | 'createFolder' | 'rename' | 'delete' | null;
@@ -2189,37 +2208,61 @@ export const FilesView: React.FC<FilesViewProps> = ({ mode = 'full' }) => {
     }
   }, [getNextOpenFile, handleSelectFile, isDirty, isMobile, openFiles, removeOpenPath, root, selectedFile?.path, setSelectedPath]);
 
+  // Built once per gitStatus change instead of re-scanning gitStatus.files for
+  // every visible row on every render (renderTree calls these once per row).
+  const gitFileStatusByPath = React.useMemo(() => {
+    const map = new Map<string, FileStatus>();
+    if (gitStatus?.files) {
+      for (const f of gitStatus.files) {
+        if (f.index === 'A' || f.working_dir === '?') map.set(f.path, 'git-added');
+        else if (f.index === 'D') map.set(f.path, 'git-deleted');
+        else if (f.index === 'M' || f.working_dir === 'M') map.set(f.path, 'git-modified');
+      }
+    }
+    return map;
+  }, [gitStatus]);
+
+  const folderBadgeByPath = React.useMemo(() => {
+    const map = new Map<string, { modified: number; added: number }>();
+    if (!gitStatus?.files) return map;
+    const bump = (dir: string, key: 'modified' | 'added') => {
+      const existing = map.get(dir);
+      if (existing) {
+        existing[key] += 1;
+      } else {
+        map.set(dir, key === 'modified' ? { modified: 1, added: 0 } : { modified: 0, added: 1 });
+      }
+    };
+    for (const f of gitStatus.files) {
+      const isModified = f.index === 'M' || f.working_dir === 'M';
+      const isAdded = f.index === 'A' || f.working_dir === '?';
+      if (!isModified && !isAdded) continue;
+      const segments = f.path.split('/');
+      segments.pop();
+      let dir = '';
+      if (isModified) bump(dir, 'modified');
+      if (isAdded) bump(dir, 'added');
+      for (const segment of segments) {
+        dir = dir ? `${dir}/${segment}` : segment;
+        if (isModified) bump(dir, 'modified');
+        if (isAdded) bump(dir, 'added');
+      }
+    }
+    return map;
+  }, [gitStatus]);
+
   const getFileStatus = React.useCallback((path: string): FileStatus | null => {
     // Check open status
     if (openPaths.includes(path)) return 'open';
-    
-    // Check git status
-    if (gitStatus?.files) {
-      const relative = path.startsWith(root + '/') ? path.slice(root.length + 1) : path;
-      const file = gitStatus.files.find(f => f.path === relative);
-      if (file) {
-        if (file.index === 'A' || file.working_dir === '?') return 'git-added';
-        if (file.index === 'D') return 'git-deleted';
-        if (file.index === 'M' || file.working_dir === 'M') return 'git-modified';
-      }
-    }
-    return null;
-  }, [openPaths, gitStatus, root]);
+
+    const relative = path.startsWith(root + '/') ? path.slice(root.length + 1) : path;
+    return gitFileStatusByPath.get(relative) ?? null;
+  }, [openPaths, gitFileStatusByPath, root]);
 
   const getFolderBadge = React.useCallback((dirPath: string): { modified: number; added: number } | null => {
-    if (!gitStatus?.files) return null;
     const relativeDir = dirPath.startsWith(root + '/') ? dirPath.slice(root.length + 1) : dirPath;
-    const prefix = relativeDir ? `${relativeDir}/` : '';
-    
-    let modified = 0, added = 0;
-    for (const f of gitStatus.files) {
-      if (f.path.startsWith(prefix)) {
-        if (f.index === 'M' || f.working_dir === 'M') modified++;
-        if (f.index === 'A' || f.working_dir === '?') added++;
-      }
-    }
-    return modified + added > 0 ? { modified, added } : null;
-  }, [gitStatus, root]);
+    return folderBadgeByPath.get(relativeDir) ?? null;
+  }, [root, folderBadgeByPath]);
 
   const toggleDirectory = React.useCallback(async (dirPath: string) => {
     const normalized = normalizePath(dirPath);
@@ -2236,6 +2279,126 @@ export const FilesView: React.FC<FilesViewProps> = ({ mode = 'full' }) => {
     () => ({ canRename, canCreateFile, canCreateFolder, canDelete, canReveal }),
     [canRename, canCreateFile, canCreateFolder, canDelete, canReveal]
   );
+
+  // Flattened, depth-first walk of the visible tree in the same order
+  // `renderTree` below produces — used only once the tree is large enough to
+  // virtualize (see `shouldVirtualizeTree`). Built once per structural change
+  // instead of on every render.
+  const flattenedTreeRows = React.useMemo((): TreeRow[] => {
+    const rows: TreeRow[] = [];
+    const walk = (dirPath: string, depth: number, pathIsLast: boolean[]) => {
+      const nodes = childrenByDir[dirPath] ?? [];
+      nodes.forEach((node, index) => {
+        const nodePathIsLast = [...pathIsLast, index === nodes.length - 1];
+        rows.push({ kind: 'node', key: node.path, node, depth, pathIsLast: nodePathIsLast });
+        const isDir = node.type === 'directory';
+        const isExpanded = isDir && expandedPaths.includes(node.path);
+        if (isDir && isExpanded) {
+          const error = loadErrorsByDir[node.path];
+          if (error) {
+            rows.push({
+              kind: 'error',
+              key: `${node.path}::error`,
+              depth: depth + 1,
+              dirPath: node.path,
+              message: error,
+              pathIsLast: [...nodePathIsLast, true],
+            });
+          }
+          walk(node.path, depth + 1, nodePathIsLast);
+        }
+      });
+    };
+    if (root && childrenByDir[root]) {
+      walk(root, 0, []);
+    }
+    return rows;
+  }, [childrenByDir, expandedPaths, loadErrorsByDir, root]);
+
+  const shouldVirtualizeTree = flattenedTreeRows.length > FILE_TREE_VIRTUALIZE_THRESHOLD;
+
+  const treeScrollElementRef = React.useRef<HTMLElement | null>(null);
+  const treeRowVirtualizer = useVirtualizer({
+    count: flattenedTreeRows.length,
+    getScrollElement: () => treeScrollElementRef.current,
+    estimateSize: () => FILE_TREE_ESTIMATED_ROW_HEIGHT,
+    overscan: 12,
+  });
+
+  // Reproduces the indentation-guide lines that the recursive renderer below
+  // gets for free from nested `<ul class="... border-l ...">` containers.
+  // `pathIsLast[level + 1]` is whether the entity that owns column `level`
+  // (an ancestor, or this row itself for the last column) was the last child
+  // among its own siblings — full-height bar when not last, blank when last,
+  // except this row's own column also gets the horizontal stub and keeps its
+  // top half regardless (matching the original's per-row connector).
+  const renderTreeGuides = (depth: number, pathIsLast: boolean[]): React.ReactNode => {
+    if (depth === 0) return null;
+    const guides: React.ReactNode[] = [];
+    for (let level = 0; level < depth; level++) {
+      const left = level * FILE_TREE_INDENT_PX + 12;
+      const isOwnColumn = level === depth - 1;
+      const entityIsLast = pathIsLast[level + 1];
+      if (isOwnColumn) {
+        guides.push(<span key={`top-${level}`} className="absolute top-0 w-px bg-border/40" style={{ left, height: 14 }} />);
+        guides.push(<span key={`stub-${level}`} className="absolute top-3.5 h-px bg-border/40" style={{ left, width: 12 }} />);
+        if (!entityIsLast) {
+          guides.push(<span key={`bottom-${level}`} className="absolute bottom-0 w-px bg-border/40" style={{ left, top: 14 }} />);
+        }
+      } else if (!entityIsLast) {
+        guides.push(<span key={`full-${level}`} className="absolute top-0 bottom-0 w-px bg-border/40" style={{ left }} />);
+      }
+    }
+    return guides;
+  };
+
+  const renderVirtualTreeRow = (row: TreeRow): React.ReactNode => {
+    if (row.kind === 'error') {
+      return (
+        <div className="relative" style={{ paddingLeft: row.depth * FILE_TREE_INDENT_PX }}>
+          {renderTreeGuides(row.depth, row.pathIsLast)}
+          <div className="flex items-center gap-2 px-2 py-1 typography-meta text-muted-foreground">
+            <span className="min-w-0 flex-1 truncate text-[var(--status-error)]" title={row.message}>{row.message}</span>
+            <Button variant="ghost" size="xs" className="h-6 gap-1" onClick={() => void refreshDirectory(row.dirPath)}>
+              <Icon name="refresh" className="size-3.5" />
+              {t('filesView.tree.actions.refreshTitle')}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    const { node, depth, pathIsLast } = row;
+    const isDir = node.type === 'directory';
+    const isExpanded = isDir && expandedPaths.includes(node.path);
+    const isActive = selectedFile?.path === node.path;
+
+    return (
+      <div className="relative" style={{ paddingLeft: depth * FILE_TREE_INDENT_PX }}>
+        {renderTreeGuides(depth, pathIsLast)}
+        <FileRow
+          node={node}
+          root={root}
+          isExpanded={isExpanded}
+          isActive={isActive}
+          isMobile={isMobile}
+          alwaysShowActions={alwaysShowActions}
+          status={!isDir ? getFileStatus(node.path) : undefined}
+          badge={isDir ? getFolderBadge(node.path) : undefined}
+          permissions={fileRowPermissions}
+          downloadFile={files.downloadFile}
+          isContextMenuOpen={contextMenuPath === node.path}
+          setContextMenuPath={setContextMenuPath}
+          isRightClickMenuOpen={rightClickMenuPath === node.path}
+          setRightClickMenuPath={setRightClickMenuPath}
+          onSelect={handleSelectFile}
+          onToggle={toggleDirectory}
+          onRevealPath={handleRevealPath}
+          onOpenDialog={handleOpenDialog}
+        />
+      </div>
+    );
+  };
 
   function renderTree(dirPath: string, depth: number): React.ReactNode {
     const nodes = childrenByDir[dirPath] ?? [];
@@ -2267,9 +2430,9 @@ export const FilesView: React.FC<FilesViewProps> = ({ mode = 'full' }) => {
             badge={isDir ? getFolderBadge(node.path) : undefined}
             permissions={fileRowPermissions}
             downloadFile={files.downloadFile}
-            contextMenuPath={contextMenuPath}
+            isContextMenuOpen={contextMenuPath === node.path}
             setContextMenuPath={setContextMenuPath}
-            rightClickMenuPath={rightClickMenuPath}
+            isRightClickMenuOpen={rightClickMenuPath === node.path}
             setRightClickMenuPath={setRightClickMenuPath}
             onSelect={handleSelectFile}
             onToggle={toggleDirectory}
@@ -4113,15 +4276,17 @@ export const FilesView: React.FC<FilesViewProps> = ({ mode = 'full' }) => {
         </div>
       </div>
 
-      <ScrollableOverlay outerClassName="flex-1 min-h-0" className={cn("py-2", isMobile ? "px-3" : "px-2")}>
-        <ul className="flex flex-col">
-          {searching ? (
+      <ScrollableOverlay ref={treeScrollElementRef} outerClassName="flex-1 min-h-0" className={cn("py-2", isMobile ? "px-3" : "px-2")}>
+        {searching ? (
+          <ul className="flex flex-col">
             <li className="flex items-center gap-1.5 px-2 py-1 typography-meta text-muted-foreground">
               <Icon name="loader-4" className="size-4 animate-spin" />
               {t('filesView.tree.search.searching')}
             </li>
-          ) : searchResults.length > 0 ? (
-            searchResults.map((node) => {
+          </ul>
+        ) : searchResults.length > 0 ? (
+          <ul className="flex flex-col">
+            {searchResults.map((node) => {
               const isActive = selectedFile?.path === node.path;
               return (
                 <li key={node.path}>
@@ -4144,8 +4309,10 @@ export const FilesView: React.FC<FilesViewProps> = ({ mode = 'full' }) => {
                   </button>
                 </li>
               );
-            })
-          ) : rootLoadError ? (
+            })}
+          </ul>
+        ) : rootLoadError ? (
+          <ul className="flex flex-col">
             <li className="flex flex-col gap-2 px-2 py-1 typography-meta text-muted-foreground">
               <span className="text-[var(--status-error)]">{rootLoadError}</span>
               <Button variant="outline" size="xs" className="w-fit gap-1.5" onClick={() => void refreshRoot()}>
@@ -4153,12 +4320,39 @@ export const FilesView: React.FC<FilesViewProps> = ({ mode = 'full' }) => {
                 {t('filesView.tree.actions.refreshTitle')}
               </Button>
             </li>
-          ) : hasTree ? (
-            renderTree(root, 0)
+          </ul>
+        ) : hasTree ? (
+          shouldVirtualizeTree ? (
+            <div style={{ height: treeRowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+              {treeRowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const row = flattenedTreeRows[virtualRow.index];
+                if (!row) return null;
+                return (
+                  <div
+                    key={row.key}
+                    data-index={virtualRow.index}
+                    ref={treeRowVirtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    {renderVirtualTreeRow(row)}
+                  </div>
+                );
+              })}
+            </div>
           ) : (
+            <ul className="flex flex-col">{renderTree(root, 0)}</ul>
+          )
+        ) : (
+          <ul className="flex flex-col">
             <li className="px-2 py-1 typography-meta text-muted-foreground">{t('filesView.state.loading')}</li>
-          )}
-        </ul>
+          </ul>
+        )}
       </ScrollableOverlay>
     </section>
   );

@@ -108,22 +108,26 @@ log.transports.console.level = isDev ? 'debug' : 'warn';
 Object.assign(console, log.functions);
 
 const LOG_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-try {
-  const logPath = log.transports.file.getFile().path;
-  const logDir = path.dirname(logPath);
-  const cutoff = Date.now() - LOG_MAX_AGE_MS;
-  for (const entry of fs.readdirSync(logDir)) {
-    const candidate = path.join(logDir, entry);
-    try {
-      const info = fs.statSync(candidate);
-      if (info.isFile() && info.mtimeMs < cutoff) {
-        fs.unlinkSync(candidate);
+// Fire-and-forget: old log pruning has no bearing on anything else in the
+// startup sequence, so it must not block module evaluation with sync I/O.
+void (async () => {
+  try {
+    const logPath = log.transports.file.getFile().path;
+    const logDir = path.dirname(logPath);
+    const cutoff = Date.now() - LOG_MAX_AGE_MS;
+    for (const entry of await fsp.readdir(logDir)) {
+      const candidate = path.join(logDir, entry);
+      try {
+        const info = await fsp.stat(candidate);
+        if (info.isFile() && info.mtimeMs < cutoff) {
+          await fsp.unlink(candidate);
+        }
+      } catch {
       }
-    } catch {
     }
+  } catch {
   }
-} catch {
-}
+})();
 
 try {
   if (!app.isDefaultProtocolClient(DEEP_LINK_PROTOCOL)) {
@@ -498,10 +502,63 @@ const writeJsonFile = async (filePath, data) => {
   await fsp.rename(tmp, filePath);
 };
 
+const normalizeSettingsRoot = (root) => (
+  root && typeof root === 'object' && !Array.isArray(root) ? root : {}
+);
+
+const readSettingsRootFromDisk = () => normalizeSettingsRoot(readJsonFile(settingsFilePath()));
+
+// In-memory cache over the settings file: every call site above used to hit
+// disk + JSON.parse synchronously (some run on every window creation or on
+// every minimize/close event). `null` means "not loaded yet"; every other
+// value, including `{}`, is a cached snapshot.
+let settingsCache = null;
+const SETTINGS_CHANGED_EVENT = 'openchamber:desktop-settings-changed';
+
 const readSettingsRoot = () => {
-  const root = readJsonFile(settingsFilePath());
-  return root && typeof root === 'object' && !Array.isArray(root) ? root : {};
+  if (settingsCache === null) {
+    settingsCache = readSettingsRootFromDisk();
+  }
+  return settingsCache;
 };
+
+// settings.json is a user-facing config file: the user may hand-edit it on
+// disk while the app is running, not only through our own writes. Re-read on
+// any external change and notify open windows so they can react instead of
+// silently keeping a stale cache until restart.
+const refreshSettingsCacheFromDisk = () => {
+  const next = readSettingsRootFromDisk();
+  const previous = settingsCache;
+  settingsCache = next;
+  if (previous !== null && JSON.stringify(previous) !== JSON.stringify(next)) {
+    emitToAllWindows(SETTINGS_CHANGED_EVENT, { settings: next });
+  }
+};
+
+let settingsWatchDebounceTimer = null;
+const startSettingsFileWatcher = () => {
+  const targetPath = settingsFilePath();
+  const dir = path.dirname(targetPath);
+  const filename = path.basename(targetPath);
+  try {
+    // Watch the directory, not the file: our own writes are tmp+rename, which
+    // replaces the inode and can silently stop a watch held on the file itself.
+    fs.mkdirSync(dir, { recursive: true });
+    const watcher = fs.watch(dir, (_eventType, changedFilename) => {
+      if (changedFilename && changedFilename !== filename) return;
+      // Coalesce bursts from a single save (editors/atomic writers can fire
+      // several fs events per write).
+      if (settingsWatchDebounceTimer) clearTimeout(settingsWatchDebounceTimer);
+      settingsWatchDebounceTimer = setTimeout(refreshSettingsCacheFromDisk, 150);
+    });
+    watcher.on('error', (error) => {
+      log.warn?.('[electron] settings file watcher error', error);
+    });
+  } catch (error) {
+    log.warn?.('[electron] failed to watch settings directory', error);
+  }
+};
+startSettingsFileWatcher();
 
 // Serializes read-modify-write of the settings file within this process.
 // Multiple call sites (spawnLocalServer, writeDesktopHostsConfig, theme
@@ -515,13 +572,20 @@ const mutateSettingsRoot = (mutator) => {
     const result = await mutator(current);
     const nextRoot = result ?? current;
     await writeJsonFile(settingsFilePath(), nextRoot);
+    // Update the cache from the value we just wrote rather than waiting on
+    // the fs.watch callback, which is a debounced safety net for external
+    // edits, not the primary invalidation path for our own writes.
+    settingsCache = normalizeSettingsRoot(nextRoot);
   });
   // Keep the chain alive even if one mutator throws.
   settingsMutationChain = next.catch(() => {});
   return next;
 };
 
-const writeSettingsRoot = async (root) => writeJsonFile(settingsFilePath(), root);
+const writeSettingsRoot = async (root) => {
+  await writeJsonFile(settingsFilePath(), root);
+  settingsCache = normalizeSettingsRoot(root);
+};
 
 // Stable per-install identifier for this desktop, persisted in settings. Used as
 // the client dedupe key on remote hosts so re-authenticating (e.g. after a login
@@ -1500,14 +1564,19 @@ const killSidecar = () => {
   }
 };
 
+// The OS major version cannot change while the app is running, so compute it
+// once instead of spawning sw_vers synchronously on every window creation.
+let cachedMacosMajorVersion = null;
 const macosMajorVersion = () => {
   if (process.platform !== 'darwin') return 0;
+  if (cachedMacosMajorVersion !== null) return cachedMacosMajorVersion;
   const result = spawnSync('/usr/bin/sw_vers', ['-productVersion'], { encoding: 'utf8' });
   const raw = (result.stdout || '').trim();
   const [majorRaw, minorRaw] = raw.split('.');
   const major = Number.parseInt(majorRaw || '0', 10);
   const minor = Number.parseInt(minorRaw || '0', 10);
-  return major === 10 ? minor : major;
+  cachedMacosMajorVersion = major === 10 ? minor : major;
+  return cachedMacosMajorVersion;
 };
 
 const buildInitScript = (localOrigin, bootOutcome, apiBaseUrl = '', clientToken = '', requestHeaders = {}) => {
