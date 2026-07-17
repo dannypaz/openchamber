@@ -13,10 +13,8 @@ concurrency:
 jobs:
   triage:
     if: |
-      github.repository == 'openchamber/openchamber' && (
-        github.event_name == 'issues' ||
-        (github.event_name == 'issue_comment' && !github.event.issue.pull_request && github.event.comment.user.login != 'openchamber-bot[bot]' && (github.event.comment.body == '@openchamber-bot triage' || startsWith(github.event.comment.body, '@openchamber-bot triage ')))
-      )
+      github.event_name == 'issues' ||
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && github.event.comment.user.login != 'openchamber-bot[bot]' && (github.event.comment.body == '@openchamber-bot triage' || startsWith(github.event.comment.body, '@openchamber-bot triage ')))
     runs-on: ubuntu-latest
     permissions:
       contents: read

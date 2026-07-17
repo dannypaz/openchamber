@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   summarize:
-    if: github.repository == 'openchamber/openchamber' && github.event.comment.user.login != 'openchamber-bot[bot]' && (github.event.comment.body == '@openchamber-bot summarize' || startsWith(github.event.comment.body, '@openchamber-bot summarize '))
+    if: github.event.comment.user.login != 'openchamber-bot[bot]' && (github.event.comment.body == '@openchamber-bot summarize' || startsWith(github.event.comment.body, '@openchamber-bot summarize '))
     runs-on: ubuntu-latest
     permissions:
       contents: read
