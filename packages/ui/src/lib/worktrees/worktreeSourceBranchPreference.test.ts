@@ -38,6 +38,30 @@ describe('resolveWorktreeSourceBranchPreference', () => {
       shouldClearSavedSourceBranch: true,
     });
   });
+
+  test('prefers the repo default branch over the currently checked-out root branch', () => {
+    expect(resolveWorktreeSourceBranchPreference({
+      branches: ['staging', 'feature/in-progress', 'main'],
+      savedSourceBranch: null,
+      rootBranch: 'feature/in-progress',
+      defaultBranch: 'staging',
+    })).toEqual({
+      sourceBranch: 'staging',
+      shouldClearSavedSourceBranch: false,
+    });
+  });
+
+  test('falls back to the root branch when the default branch is not in the branch list', () => {
+    expect(resolveWorktreeSourceBranchPreference({
+      branches: ['feature/in-progress', 'main'],
+      savedSourceBranch: null,
+      rootBranch: 'feature/in-progress',
+      defaultBranch: 'staging',
+    })).toEqual({
+      sourceBranch: 'feature/in-progress',
+      shouldClearSavedSourceBranch: false,
+    });
+  });
 });
 
 describe('resolveWorktreeSourceBranchToPersist', () => {

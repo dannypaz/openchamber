@@ -4,6 +4,7 @@ export interface WorktreeSourceBranchPreferenceArgs {
   branches: readonly string[];
   savedSourceBranch: string | null;
   rootBranch: string | null;
+  defaultBranch?: string | null;
 }
 
 export interface WorktreeSourceBranchPreferenceResult {
@@ -39,6 +40,7 @@ export const resolveWorktreeSourceBranchPreference = ({
   branches,
   savedSourceBranch,
   rootBranch,
+  defaultBranch,
 }: WorktreeSourceBranchPreferenceArgs): WorktreeSourceBranchPreferenceResult => {
   const savedSourceBranchIsValid = Boolean(savedSourceBranch && branches.includes(savedSourceBranch));
 
@@ -49,13 +51,17 @@ export const resolveWorktreeSourceBranchPreference = ({
     };
   }
 
-  const sourceBranch = rootBranch && branches.includes(rootBranch)
-    ? rootBranch
-    : branches.includes('main')
-      ? 'main'
-      : branches.includes('master')
-        ? 'master'
-        : branches[0] ?? '';
+  // Prefer the repo's actual configured default branch (e.g. "staging") over
+  // whichever branch happens to be checked out in the primary worktree.
+  const sourceBranch = defaultBranch && branches.includes(defaultBranch)
+    ? defaultBranch
+    : rootBranch && branches.includes(rootBranch)
+      ? rootBranch
+      : branches.includes('main')
+        ? 'main'
+        : branches.includes('master')
+          ? 'master'
+          : branches[0] ?? '';
 
   return {
     sourceBranch,
