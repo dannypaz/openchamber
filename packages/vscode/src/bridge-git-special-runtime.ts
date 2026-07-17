@@ -17,7 +17,6 @@ type SpecialGitDeps = {
   execGit: (args: string[], cwd: string) => Promise<ExecGitResult>;
 };
 
-const BRIDGE_ZEN_DEFAULT_MODEL = 'gpt-5-nano';
 const BRIDGE_GIT_GENERATION_TIMEOUT_MS = 2 * 60 * 1000;
 const BRIDGE_GIT_GENERATION_POLL_INTERVAL_MS = 500;
 const BRIDGE_GIT_MODEL_CATALOG_CACHE_TTL_MS = 30 * 1000;
@@ -114,12 +113,17 @@ const fetchBridgeGitModelCatalog = async (
   return refs;
 };
 
+// Only ever honors an explicit request/settings-provided provider+model — never
+// invents a fallback (e.g. a hardcoded zen model) when the user hasn't opted
+// in. A fresh install with nothing configured must resolve to null so the
+// caller surfaces a clear "configure a provider" error instead of silently
+// using OpenCode's built-in free provider.
 const resolveBridgeGitGenerationModel = async (
   payloadModel: { providerId?: string; modelId?: string; zenModel?: string },
   settings: Record<string, unknown>,
   apiUrl: string,
   authHeaders?: Record<string, string>
-): Promise<{ providerID: string; modelID: string }> => {
+): Promise<{ providerID: string; modelID: string } | null> => {
   let catalog: Set<string> | null = null;
   try {
     catalog = await fetchBridgeGitModelCatalog(apiUrl, authHeaders);
@@ -148,10 +152,12 @@ const resolveBridgeGitGenerationModel = async (
 
   const payloadZenModel = typeof payloadModel.zenModel === 'string' ? payloadModel.zenModel.trim() : '';
   const settingsZenModel = readStringField(settings, 'zenModel');
-  return {
-    providerID: 'zen',
-    modelID: payloadZenModel || settingsZenModel || BRIDGE_ZEN_DEFAULT_MODEL,
-  };
+  const zenModel = payloadZenModel || settingsZenModel;
+  if (zenModel && hasModel('zen', zenModel)) {
+    return { providerID: 'zen', modelID: zenModel };
+  }
+
+  return null;
 };
 
 const extractTextFromMessageParts = (parts: unknown): string => {
@@ -339,12 +345,16 @@ export async function handleSpecialGitBridgeMessage(
         }
 
         const settings = deps.readSettings(ctx) as Record<string, unknown>;
-        const { providerID, modelID } = await resolveBridgeGitGenerationModel(
+        const resolvedModel = await resolveBridgeGitGenerationModel(
           { providerId, modelId, zenModel: payloadZenModel },
           settings,
           apiUrl,
           ctx?.manager?.getOpenCodeAuthHeaders()
         );
+        if (!resolvedModel) {
+          return { id, type, success: false, error: 'No provider configured for PR description generation. Select a provider/model or configure one in Settings.' };
+        }
+        const { providerID, modelID } = resolvedModel;
         const raw = await generateBridgeTextWithSessionFlow({
           apiUrl,
           directory,
