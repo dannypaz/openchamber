@@ -11,6 +11,8 @@ import { Icon } from "@/components/icon/Icon";
 import { useI18n } from '@/lib/i18n';
 import { getDesktopAppVersion } from '@/lib/desktopNative';
 import { runtimeFetch } from '@/lib/runtime-fetch';
+import { useUpdateStore } from '@/stores/useUpdateStore';
+import { useUIStore } from '@/stores/useUIStore';
 
 interface AboutDialogProps {
   open: boolean;
@@ -29,6 +31,20 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
   const [copiedDiagnostics, setCopiedDiagnostics] = React.useState(false);
   const [diagnosticsReport, setDiagnosticsReport] = React.useState<string | null>(null);
   const [isPreparingDiagnostics, setIsPreparingDiagnostics] = React.useState(false);
+
+  const appUpdateAvailable = useUpdateStore((state) => state.available);
+  const appUpdateRuntimeType = useUpdateStore((state) => state.runtimeType);
+  const appUpdateVersion = useUpdateStore((state) => state.info?.version);
+  const setUpdateDialogOpen = useUIStore((state) => state.setUpdateDialogOpen);
+  const showUpdateAction =
+    appUpdateAvailable &&
+    Boolean(appUpdateVersion) &&
+    (appUpdateRuntimeType === 'desktop' || appUpdateRuntimeType === 'web');
+
+  const handleOpenUpdateDialog = React.useCallback(() => {
+    onOpenChange(false);
+    setUpdateDialogOpen(true);
+  }, [onOpenChange, setUpdateDialogOpen]);
 
   const handleCopyDiagnostics = React.useCallback(async () => {
     if (!showDiagnostics) return;
@@ -157,6 +173,21 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
               )}
             </div>
           </div>
+
+          {showUpdateAction && (
+            <button
+              type="button"
+              onClick={handleOpenUpdateDialog}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md border px-3 py-1.5 typography-meta font-medium transition-colors',
+                'border-[var(--status-info-border)] bg-[var(--status-info-background)] text-[var(--status-info)]',
+                'hover:bg-[var(--status-info-background)]/80'
+              )}
+            >
+              <Icon name="download-cloud" className="h-3.5 w-3.5" />
+              {t('aboutDialog.actions.updateAvailable', { version: appUpdateVersion ?? '' })}
+            </button>
+          )}
 
           {showDiagnostics && (
             <div className="flex flex-col items-center gap-2 pt-2">

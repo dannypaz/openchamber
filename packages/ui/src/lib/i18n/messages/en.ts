@@ -1532,6 +1532,7 @@ export const dict = {
   'aboutDialog.versionLabel': 'Version {version}',
   'aboutDialog.openChamberVersionLabel': 'OpenChamber version {version}',
   'aboutDialog.openCodeVersionLabel': 'OpenCode version {version}',
+  'aboutDialog.actions.updateAvailable': 'Update to {version}',
   'aboutDialog.actions.copyDiagnostics': 'Copy diagnostics',
   'aboutDialog.actions.preparingDiagnostics': 'Preparing diagnostics...',
   'aboutDialog.actions.diagnosticsCopied': 'Diagnostics copied',

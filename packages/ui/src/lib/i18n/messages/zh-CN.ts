@@ -1498,6 +1498,7 @@ export const dict: Record<I18nKey, string> = {
   'aboutDialog.versionLabel': '版本 {version}',
   'aboutDialog.openChamberVersionLabel': 'OpenChamber 版本 {version}',
   'aboutDialog.openCodeVersionLabel': 'OpenCode 版本 {version}',
+  'aboutDialog.actions.updateAvailable': '更新至 {version}',
   'aboutDialog.actions.copyDiagnostics': '复制诊断信息',
   'aboutDialog.actions.preparingDiagnostics': '正在准备诊断信息...',
   'aboutDialog.actions.diagnosticsCopied': '诊断信息已复制',

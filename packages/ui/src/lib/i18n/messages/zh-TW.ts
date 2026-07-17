@@ -1502,6 +1502,7 @@ export const dict: Record<I18nKey, string> = {
   'aboutDialog.versionLabel': '版本 {version}',
   'aboutDialog.openChamberVersionLabel': 'OpenChamber 版本 {version}',
   'aboutDialog.openCodeVersionLabel': 'OpenCode 版本 {version}',
+  'aboutDialog.actions.updateAvailable': '更新至 {version}',
   'aboutDialog.actions.copyDiagnostics': '複製診斷資訊',
   'aboutDialog.actions.preparingDiagnostics': '正在準備診斷資訊...',
   'aboutDialog.actions.diagnosticsCopied': '診斷資訊已複製',
