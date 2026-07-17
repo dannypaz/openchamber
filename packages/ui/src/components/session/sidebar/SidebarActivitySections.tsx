@@ -61,7 +61,7 @@ export function SidebarActivitySections({
   batchSize = MAX_VISIBLE_RECENT_SESSIONS,
 }: Props): React.ReactNode {
   const { t } = useI18n();
-  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set(['active-now']));
   const [visibleCountBySection, setVisibleCountBySection] = React.useState<Map<string, number>>(new Map());
   const flatVariant = variant === 'flat';
 
