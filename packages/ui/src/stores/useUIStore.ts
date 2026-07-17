@@ -557,6 +557,7 @@ interface UIStore {
   isCommandPaletteOpen: boolean;
   isHelpDialogOpen: boolean;
   isAboutDialogOpen: boolean;
+  isUpdateDialogOpen: boolean;
   isOpenCodeStatusDialogOpen: boolean;
   openCodeStatusText: string;
   isSessionCreateDialogOpen: boolean;
@@ -720,6 +721,7 @@ interface UIStore {
   toggleHelpDialog: () => void;
   setHelpDialogOpen: (open: boolean) => void;
   setAboutDialogOpen: (open: boolean) => void;
+  setUpdateDialogOpen: (open: boolean) => void;
   setOpenCodeStatusDialogOpen: (open: boolean) => void;
   setOpenCodeStatusText: (text: string) => void;
   setSessionCreateDialogOpen: (open: boolean) => void;
@@ -876,6 +878,7 @@ export const useUIStore = create<UIStore>()(
         isCommandPaletteOpen: false,
         isHelpDialogOpen: false,
         isAboutDialogOpen: false,
+        isUpdateDialogOpen: false,
         isOpenCodeStatusDialogOpen: false,
         openCodeStatusText: '',
         isSessionCreateDialogOpen: false,
@@ -1536,6 +1539,10 @@ export const useUIStore = create<UIStore>()(
 
         setAboutDialogOpen: (open) => {
           set({ isAboutDialogOpen: open });
+        },
+
+        setUpdateDialogOpen: (open) => {
+          set({ isUpdateDialogOpen: open });
         },
 
         setOpenCodeStatusDialogOpen: (open) => {

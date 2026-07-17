@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from "@/components/icon/Icon";
 import { useI18n } from '@/lib/i18n';
@@ -10,9 +9,7 @@ type Props = {
   onOpenSettings: () => void;
   onOpenShortcuts: () => void;
   onOpenAbout: () => void;
-  onOpenUpdate: () => void;
   showRuntimeButtons?: boolean;
-  showUpdateButton?: boolean;
   githubAuthStatus?: GitHubAuthStatus | null;
   githubAccounts?: Array<NonNullable<GitHubAuthStatus['accounts']>[number]>;
   githubAvatarUrl?: string | null;
@@ -27,9 +24,7 @@ export function SidebarFooter({
   onOpenSettings,
   onOpenShortcuts,
   onOpenAbout,
-  onOpenUpdate,
   showRuntimeButtons = true,
-  showUpdateButton = true,
   githubAuthStatus = null,
   githubAccounts = [],
   githubAvatarUrl = null,
@@ -39,7 +34,7 @@ export function SidebarFooter({
 }: Props): React.ReactNode {
   const { t } = useI18n();
 
-  if (!showRuntimeButtons && !showUpdateButton && !githubAuthStatus?.connected) {
+  if (!showRuntimeButtons && !githubAuthStatus?.connected) {
     return null;
   }
 
@@ -83,17 +78,6 @@ export function SidebarFooter({
               <TooltipContent side="top" sideOffset={4}><p>{t('sessions.sidebar.footer.actions.aboutOpenChamber')}</p></TooltipContent>
             </Tooltip>
           </>
-        ) : null}
-        {showUpdateButton ? (
-          <Button
-            type="button"
-            variant="default"
-            size="xs"
-            className="border-[var(--status-info-border)] bg-[var(--status-info-background)] text-[var(--status-info)] hover:bg-[var(--status-info-background)]/80 hover:text-[var(--status-info)] dark:border-[var(--status-info-border)] dark:bg-[var(--status-info-background)] dark:hover:bg-[var(--status-info-background)]/80"
-            onClick={onOpenUpdate}
-          >
-            {t('sessions.sidebar.footer.actions.update')}
-          </Button>
         ) : null}
       </div>
     </div>

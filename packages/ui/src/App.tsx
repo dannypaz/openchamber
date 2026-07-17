@@ -59,6 +59,10 @@ import { SyncAppEffects } from '@/apps/AppEffects';
 import { resetAppForRuntimeEndpointChange } from '@/apps/runtimeEndpointReset';
 import { useAppFontEffects } from '@/apps/useAppFontEffects';
 import { OpenCodeUpdateToast } from '@/components/update/OpenCodeUpdateToast';
+import { AppUpdateToast } from '@/components/update/AppUpdateToast';
+import { UpdateDialog } from '@/components/ui/UpdateDialog';
+import { useUpdateStore } from '@/stores/useUpdateStore';
+import { useShallow } from 'zustand/react/shallow';
 import { markStartupTrace, startupTraceEnabled } from '@/lib/startupTrace';
 
 // Lazy-loaded heavy views — loaded on demand to reduce initial bundle size.
@@ -73,6 +77,36 @@ const AboutDialogWrapper: React.FC = () => {
     <AboutDialog
       open={isAboutDialogOpen}
       onOpenChange={setAboutDialogOpen}
+    />
+  );
+};
+
+const AppUpdateDialogWrapper: React.FC = () => {
+  const isUpdateDialogOpen = useUIStore((s) => s.isUpdateDialogOpen);
+  const setUpdateDialogOpen = useUIStore((s) => s.setUpdateDialogOpen);
+  const updateStore = useUpdateStore(useShallow((s) => ({
+    info: s.info,
+    downloading: s.downloading,
+    downloaded: s.downloaded,
+    progress: s.progress,
+    error: s.error,
+    runtimeType: s.runtimeType,
+    downloadUpdate: s.downloadUpdate,
+    restartToUpdate: s.restartToUpdate,
+  })));
+
+  return (
+    <UpdateDialog
+      open={isUpdateDialogOpen}
+      onOpenChange={setUpdateDialogOpen}
+      info={updateStore.info}
+      downloading={updateStore.downloading}
+      downloaded={updateStore.downloaded}
+      progress={updateStore.progress}
+      error={updateStore.error}
+      onDownload={updateStore.downloadUpdate}
+      onRestart={updateStore.restartToUpdate}
+      runtimeType={updateStore.runtimeType}
     />
   );
 };
@@ -922,12 +956,14 @@ function App({ apis }: AppProps) {
                 <div className={isDesktopRuntime ? 'h-full text-foreground bg-transparent' : 'h-full text-foreground bg-background'}>
                   <SyncAppEffects embeddedBackgroundWorkEnabled={embeddedBackgroundWorkEnabled} />
                   <OpenCodeUpdateToast />
+                  <AppUpdateToast />
                   <MainLayout />
                   <Toaster />
                   {!isBootShell && (
                     <>
                       <ConfigUpdateOverlay />
                       <AboutDialogWrapper />
+                      <AppUpdateDialogWrapper />
                       {showMemoryDebug && (
                         <MemoryDebugPanel onClose={() => setShowMemoryDebug(false)} />
                       )}
