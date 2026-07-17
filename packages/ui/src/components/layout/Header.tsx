@@ -69,6 +69,7 @@ import { useI18n } from '@/lib/i18n';
 import { runtimeFetch } from '@/lib/runtime-fetch';
 import { getRuntimeBearerTokenSync } from '@/lib/runtime-auth';
 import { getRuntimeApiBaseUrl } from '@/lib/runtime-switch';
+import { forceKillTerminal } from '@/lib/terminalApi';
 import type { Session } from '@opencode-ai/sdk/v2/client';
 import type { IconName } from "@/components/icon/icons";
 
@@ -1732,7 +1733,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       try {
         // Ensure preview/dev terminals don't linger.
-        await runtimeApis.terminal.forceKill?.({});
+        await forceKillTerminal({});
       } catch {
         // ignore
       }
@@ -1757,7 +1758,7 @@ export const Header: React.FC<HeaderProps> = ({
         setIsDevShutdownInFlight(false);
       }
     }
-  }, [isDevShutdownInFlight, runtimeApis.terminal, setIsDesktopServicesOpen]);
+  }, [isDevShutdownInFlight, setIsDesktopServicesOpen]);
 
   const quotaDisplayTabs = React.useMemo(() => {
     return [
