@@ -869,6 +869,17 @@ const SETTINGS_SEARCH_ITEMS: readonly SettingsSearchItem[] = [
     isAvailable: (ctx) => !ctx.isVSCode,
   },
   {
+    id: 'cloud.enabled',
+    page: 'cloud',
+    titleKey: 'settings.openchamber.cloud.field.enabled',
+    descriptionKey: 'settings.openchamber.cloud.tooltip',
+    // The provisioner webhook fields only render once this toggle is on
+    // (a conditional target per settings-ui-patterns' search rules), so only
+    // the always-visible toggle itself is indexed here, not those fields.
+    keywords: ['cloud', 'vm', 'microvm', 'ephemeral', 'provisioning', 'webhook', 'sandbox'],
+    isAvailable: (ctx) => !ctx.isVSCode,
+  },
+  {
     id: 'notifications.delivery',
     page: 'notifications',
     titleKey: 'settings.notifications.page.delivery.title',

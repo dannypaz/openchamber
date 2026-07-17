@@ -83,15 +83,29 @@ export const createOpenCodeNetworkRuntime = (deps) => {
     }
   };
 
+  const joinOpenCodeUrl = (base, path, prefixOverride) => {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const prefix = normalizeApiPrefix(prefixOverride !== undefined ? prefixOverride : '');
+    return `${base}${prefix}${normalizedPath}`;
+  };
+
   const buildOpenCodeUrl = (path, prefixOverride) => {
     if (!state.openCodePort) {
       throw new Error('OpenCode port is not available');
     }
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    const prefix = normalizeApiPrefix(prefixOverride !== undefined ? prefixOverride : '');
-    const fullPath = `${prefix}${normalizedPath}`;
     const base = state.openCodeBaseUrl ?? `http://${resolveConnectHostname()}:${state.openCodePort}`;
-    return `${base}${fullPath}`;
+    return joinOpenCodeUrl(base, path, prefixOverride);
+  };
+
+  // Ephemeral targets (e.g. per-session cloud microVMs) carry their own
+  // baseUrl and are never routed through the singleton `state` above — this
+  // sibling lets proxy dispatch build a URL for one without touching the
+  // default managed/external target's state.
+  const buildOpenCodeUrlFor = (target, path, prefixOverride) => {
+    if (!target?.baseUrl) {
+      throw new Error('Ephemeral target has no baseUrl');
+    }
+    return joinOpenCodeUrl(target.baseUrl, path, prefixOverride);
   };
 
   const detectOpenCodeApiPrefix = () => {
@@ -111,6 +125,7 @@ export const createOpenCodeNetworkRuntime = (deps) => {
     normalizeApiPrefix,
     setDetectedOpenCodeApiPrefix,
     buildOpenCodeUrl,
+    buildOpenCodeUrlFor,
     ensureOpenCodeApiPrefix,
     scheduleOpenCodeApiDetection,
   };

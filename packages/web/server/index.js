@@ -48,6 +48,10 @@ import {
 } from './lib/event-stream/index.js';
 import { createFsSearchRuntime as createFsSearchRuntimeFactory } from './lib/fs/search.js';
 import { createOpenCodeLifecycleRuntime } from './lib/opencode/lifecycle.js';
+import { createEphemeralOpenCodeTargetsRuntime } from './lib/opencode/ephemeral-targets.js';
+import { registerEphemeralTargetRoutes } from './lib/opencode/ephemeral-target-routes.js';
+import { createCloudProvisioningRuntime } from './lib/opencode/cloud-provisioning.js';
+import { registerCloudProvisioningRoutes } from './lib/opencode/cloud-provisioning-routes.js';
 import { createOpenCodeEnvRuntime } from './lib/opencode/env-runtime.js';
 import { resolveOpenCodeEnvConfig } from './lib/opencode/env-config.js';
 import { createHmrStateRuntime } from './lib/opencode/hmr-state-runtime.js';
@@ -887,6 +891,14 @@ const serverUtilsRuntime = createServerUtilsRuntime({
   buildOpenCodeUrl,
   ensureOpenCodeApiPrefix,
   getUiNotificationClients: () => uiNotificationClients,
+  // Deferred to call-time: ephemeralOpenCodeTargetsRuntime is constructed
+  // further below, after openCodeLifecycleRuntime (it reuses its
+  // probeExternalOpenCode) — same forward-reference pattern already used for
+  // setupProxy elsewhere in this file.
+  getEphemeralTarget: (...args) => ephemeralOpenCodeTargetsRuntime.getEphemeralTarget(...args),
+  getOpenCodeAuthHeadersFor: (...args) => openCodeAuthStateRuntime.getOpenCodeAuthHeadersFor(...args),
+  buildOpenCodeUrlFor: (...args) => openCodeNetworkRuntime.buildOpenCodeUrlFor(...args),
+  touchEphemeralTargetActivity: (...args) => ephemeralOpenCodeTargetsRuntime.touchEphemeralTargetActivity(...args),
   getOpenCodePort: () => openCodePort,
   setOpenCodePortState: (value) => {
     openCodePort = value;
@@ -1050,6 +1062,29 @@ const openCodeLifecycleRuntime = createOpenCodeLifecycleRuntime({
   getActiveSessionCount,
 });
 
+// Registry for ephemeral OpenCode backends (e.g. one per-session cloud
+// microVM provisioned by external infra) — additive alongside the singleton
+// managed/external target above; see ephemeral-targets.js.
+const ephemeralOpenCodeTargetsRuntime = createEphemeralOpenCodeTargetsRuntime({
+  crypto,
+  probeExternalOpenCode: openCodeLifecycleRuntime.probeExternalOpenCode,
+  getOpenCodeAuthHeadersFor: openCodeAuthStateRuntime.getOpenCodeAuthHeadersFor,
+});
+
+// Layered on top of ephemeralOpenCodeTargetsRuntime — owns calling the
+// user-configured provisioner webhook and composing its response with the
+// low-level registry above. Settings are read fresh (disk-backed) on every
+// call rather than cached, matching how the rest of this file reads settings.
+const cloudProvisioningRuntime = createCloudProvisioningRuntime({
+  crypto,
+  ephemeralTargetsRuntime: ephemeralOpenCodeTargetsRuntime,
+  getCloudProvisioningSettings: async () => {
+    const settings = await readSettingsFromDiskMigrated();
+    return settings?.cloudProvisioning ?? {};
+  },
+});
+cloudProvisioningRuntime.startSweeping();
+
 const restartOpenCode = (...args) => openCodeLifecycleRuntime.restartOpenCode(...args);
 const waitForOpenCodeReady = (...args) => openCodeLifecycleRuntime.waitForOpenCodeReady(...args);
 const waitForAgentPresence = (...args) => openCodeLifecycleRuntime.waitForAgentPresence(...args);
@@ -1160,6 +1195,17 @@ const gracefulShutdownRuntime = createGracefulShutdownRuntime({
   },
   tunnelAuthController,
   scheduledTasksRuntime,
+  // Cloud-provisioned targets first (their teardown calls the destroy
+  // webhook, then locally deregisters); then sweep anything left in the raw
+  // registry — e.g. targets registered directly via the low-level
+  // /api/openchamber/ephemeral-targets routes, which cloudProvisioningRuntime
+  // never knew about. The second call is a no-op for anything the first
+  // already removed (deregisterEphemeralTarget is idempotent).
+  disposeEphemeralOpenCodeTargets: async () => {
+    const cloudIds = await cloudProvisioningRuntime.disposeAll();
+    const rawIds = ephemeralOpenCodeTargetsRuntime.disposeAll();
+    return Array.from(new Set([...cloudIds, ...rawIds]));
+  },
 });
 
 const gracefulShutdown = (...args) => gracefulShutdownRuntime.gracefulShutdown(...args);
@@ -1546,6 +1592,21 @@ async function main(options = {}) {
     uiAuthController,
     isRequestOriginAllowed,
     rejectWebSocketUpgrade,
+  });
+
+  registerEphemeralTargetRoutes(app, {
+    express,
+    registerEphemeralTarget: ephemeralOpenCodeTargetsRuntime.registerEphemeralTarget,
+    deregisterEphemeralTarget: ephemeralOpenCodeTargetsRuntime.deregisterEphemeralTarget,
+    listEphemeralTargets: ephemeralOpenCodeTargetsRuntime.listEphemeralTargets,
+  });
+
+  registerCloudProvisioningRoutes(app, {
+    express,
+    provisionCloudTarget: cloudProvisioningRuntime.provisionCloudTarget,
+    destroyCloudTarget: cloudProvisioningRuntime.destroyCloudTarget,
+    listProvisioned: cloudProvisioningRuntime.listProvisioned,
+    getEphemeralTarget: ephemeralOpenCodeTargetsRuntime.getEphemeralTarget,
   });
 
   const startupPipelineResult = await startupPipelineRuntime.run({

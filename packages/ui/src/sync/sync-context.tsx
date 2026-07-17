@@ -56,7 +56,7 @@ import { runtimeFetch } from "@/lib/runtime-fetch"
 // Context
 // ---------------------------------------------------------------------------
 
-type SyncSystem = {
+export type SyncSystem = {
   childStores: ChildStoreManager
   sdk: OpencodeClient
   directory: string
@@ -68,7 +68,13 @@ type SyncGlobal = typeof globalThis & {
 }
 
 const syncGlobal = globalThis as SyncGlobal
-const SyncContext = syncGlobal[SYNC_CONTEXT_GLOBAL_KEY] ?? createContext<SyncSystem | null>(null)
+// Exported so a cloud-target-scoped session view can nest a second
+// <SyncContext.Provider value={{childStores, sdk, directory}}> around just
+// its own subtree — every existing hook below (useSyncSystem,
+// useLiveSyncSelector, useGlobalSessionStatus, etc.) resolves the NEAREST
+// provider via useContext, so this is standard React context nesting, not a
+// new mechanism. See cloud-pipeline-registry.ts.
+export const SyncContext = syncGlobal[SYNC_CONTEXT_GLOBAL_KEY] ?? createContext<SyncSystem | null>(null)
 syncGlobal[SYNC_CONTEXT_GLOBAL_KEY] = SyncContext
 
 type SdkResult<T> = {
@@ -591,7 +597,11 @@ export function shouldTriggerStaleResync(
   return true
 }
 
-type EventRoutingIndex = {
+// Exported so a second, independent event pipeline (e.g. one routing a
+// cloud-target-scoped OpenCode backend's events) can construct its own
+// isolated routing index and feed it into handleEvent() below — these were
+// already per-instance state (never module singletons), just not exposed.
+export type EventRoutingIndex = {
   sessionDirectoryById: Map<string, string>
   messageSessionById: Map<string, string>
   sessionMessageIdsById: Map<string, Set<string>>
@@ -606,7 +616,7 @@ const dispatchVSCodeRuntimeNotificationEvent = (directory: string, payload: Even
   }))
 }
 
-const createEventRoutingIndex = (): EventRoutingIndex => ({
+export const createEventRoutingIndex = (): EventRoutingIndex => ({
   sessionDirectoryById: new Map(),
   messageSessionById: new Map(),
   sessionMessageIdsById: new Map(),
@@ -901,7 +911,7 @@ const getActiveDirectoryFallback = (childStores: ChildStoreManager): string | nu
   return childStores.getChild(_activeDirectory) ? _activeDirectory : null
 }
 
-const resolveDirectoryFromRoutingIndex = (
+export const resolveDirectoryFromRoutingIndex = (
   routingIndex: EventRoutingIndex,
   rawDirectory: string,
   payload: Event,
@@ -1351,7 +1361,16 @@ async function resyncDirectoryAfterReconnect(
   ingestDirectoryStateIntoRoutingIndex(routingIndex, directory, store.getState())
 }
 
-function handleEvent(
+// Exported (alongside resolveDirectoryFromRoutingIndex/createEventRoutingIndex
+// above) so a second, independent event pipeline can feed its own
+// childStores/routingIndex pair through the same fan-out logic used by the
+// app's default pipeline — see cloud-pipeline-registry.ts. No behavior
+// change: this function only ever touched its explicit parameters plus a
+// small set of directory-agnostic global aggregators (useGlobalSyncStore
+// etc.) that background-session tracking already relies on for ALL
+// directories, so cloud events flowing through them is intentional, not a
+// new collision risk.
+export function handleEvent(
   rawDirectory: string,
   payload: Event,
   childStores: ChildStoreManager,

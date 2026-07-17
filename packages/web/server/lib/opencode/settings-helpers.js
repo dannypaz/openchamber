@@ -29,6 +29,8 @@ export const createSettingsHelpers = (dependencies) => {
   const HIDDEN_MODELS_MAX = 1024;
   const RECENT_EFFORTS_MAX_KEYS = 128;
   const RECENT_EFFORTS_MAX_VARIANTS_PER_KEY = 5;
+  const CLOUD_WEBHOOK_URL_MAX_LENGTH = 2048;
+  const CLOUD_TIMEOUT_MAX_MINUTES = 7 * 24 * 60;
 
   const sanitizeShortcutOverrides = (value) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -820,6 +822,41 @@ export const createSettingsHelpers = (dependencies) => {
       }
     }
 
+    if (candidate.cloudProvisioning && typeof candidate.cloudProvisioning === 'object' && !Array.isArray(candidate.cloudProvisioning)) {
+      const source = candidate.cloudProvisioning;
+      // Only include fields actually present in this partial update — this
+      // object is deep-merged onto the stored cloudProvisioning in
+      // mergePersistedSettings(), so defaulting an absent field here (e.g.
+      // `enabled: false`) would silently clobber it on an unrelated save.
+      const cloudProvisioning = {};
+      if (typeof source.enabled === 'boolean') {
+        cloudProvisioning.enabled = source.enabled;
+      }
+      if (typeof source.provisionWebhookUrl === 'string') {
+        cloudProvisioning.provisionWebhookUrl = source.provisionWebhookUrl.trim().slice(0, CLOUD_WEBHOOK_URL_MAX_LENGTH);
+      }
+      if (typeof source.destroyWebhookUrl === 'string') {
+        cloudProvisioning.destroyWebhookUrl = source.destroyWebhookUrl.trim().slice(0, CLOUD_WEBHOOK_URL_MAX_LENGTH);
+      }
+      // Mirrors managedRemoteTunnelToken: null explicitly clears a stored
+      // secret, a string sets a new one, and (unlike that field) omitting
+      // the key entirely must leave the current stored token untouched —
+      // formatSettingsResponse() never sends the raw token back, so a
+      // round-tripped read-then-write payload has no key to omit.
+      if (source.webhookAuthToken === null) {
+        cloudProvisioning.webhookAuthToken = null;
+      } else if (typeof source.webhookAuthToken === 'string') {
+        cloudProvisioning.webhookAuthToken = source.webhookAuthToken.trim();
+      }
+      if (Number.isFinite(source.idleTimeoutMinutes) && source.idleTimeoutMinutes > 0) {
+        cloudProvisioning.idleTimeoutMinutes = Math.min(Math.trunc(source.idleTimeoutMinutes), CLOUD_TIMEOUT_MAX_MINUTES);
+      }
+      if (Number.isFinite(source.maxLifetimeMinutes) && source.maxLifetimeMinutes > 0) {
+        cloudProvisioning.maxLifetimeMinutes = Math.min(Math.trunc(source.maxLifetimeMinutes), CLOUD_TIMEOUT_MAX_MINUTES);
+      }
+      result.cloudProvisioning = cloudProvisioning;
+    }
+
     return result;
   };
 
@@ -837,6 +874,17 @@ export const createSettingsHelpers = (dependencies) => {
         }
       : current.typographySizes;
 
+    // Deep-merge like typographySizes above: formatSettingsResponse() never
+    // sends webhookAuthToken back (redacted), so a read-then-write round
+    // trip carries a cloudProvisioning object with no token field at all —
+    // a plain top-level spread would read as "clear the token."
+    const nextCloudProvisioning = changes.cloudProvisioning
+      ? {
+          ...(current.cloudProvisioning || {}),
+          ...changes.cloudProvisioning
+        }
+      : current.cloudProvisioning;
+
     const next = {
       ...current,
       ...changes,
@@ -845,7 +893,8 @@ export const createSettingsHelpers = (dependencies) => {
           baseBookmarks.filter((entry) => typeof entry === 'string' && entry.length > 0)
         )
       ),
-      typographySizes: nextTypographySizes
+      typographySizes: nextTypographySizes,
+      cloudProvisioning: nextCloudProvisioning
     };
 
     return next;
@@ -856,6 +905,12 @@ export const createSettingsHelpers = (dependencies) => {
     delete sanitized.managedRemoteTunnelToken;
     const bookmarks = normalizeStringArray(settings.securityScopedBookmarks);
     const hasManagedRemoteTunnelToken = typeof settings?.managedRemoteTunnelToken === 'string' && settings.managedRemoteTunnelToken.trim().length > 0;
+    const hasCloudProvisioningWebhookAuthToken = typeof settings?.cloudProvisioning?.webhookAuthToken === 'string'
+      && settings.cloudProvisioning.webhookAuthToken.trim().length > 0;
+    if (sanitized.cloudProvisioning) {
+      sanitized.cloudProvisioning = { ...sanitized.cloudProvisioning };
+      delete sanitized.cloudProvisioning.webhookAuthToken;
+    }
     const pwaAppName = normalizePwaAppName(settings?.pwaAppName, '');
     const pwaOrientation = normalizePwaOrientation(settings?.pwaOrientation, 'system');
     const mobileKeyboardMode = normalizeMobileKeyboardMode(settings?.mobileKeyboardMode, 'native');
@@ -863,6 +918,7 @@ export const createSettingsHelpers = (dependencies) => {
     return {
       ...sanitized,
       hasManagedRemoteTunnelToken,
+      hasCloudProvisioningWebhookAuthToken,
       ...(pwaAppName ? { pwaAppName } : {}),
       pwaOrientation,
       mobileKeyboardMode,

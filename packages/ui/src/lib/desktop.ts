@@ -209,6 +209,19 @@ export type DesktopSettings = {
   draftStartersCraftGoalAdded?: boolean;
   // Whether the draft starter chip row shows on the new-chat welcome screen at all.
   draftStartersEnabled?: boolean;
+
+  // Cloud VM provisioning (per-session ephemeral OpenCode backends). Server-
+  // persisted since it carries a webhook credential; webhookAuthToken is
+  // write-only — GET responses omit it and report hasCloudProvisioningWebhookAuthToken instead.
+  cloudProvisioning?: {
+    enabled?: boolean;
+    provisionWebhookUrl?: string;
+    destroyWebhookUrl?: string;
+    webhookAuthToken?: string | null;
+    idleTimeoutMinutes?: number;
+    maxLifetimeMinutes?: number;
+  };
+  hasCloudProvisioningWebhookAuthToken?: boolean;
 };
 
 type DesktopBridgeGlobal = {

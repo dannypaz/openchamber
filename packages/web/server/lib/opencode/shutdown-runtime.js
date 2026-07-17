@@ -29,6 +29,7 @@ export const createGracefulShutdownRuntime = (dependencies) => {
     getActiveTunnelController,
     setActiveTunnelController,
     tunnelAuthController,
+    disposeEphemeralOpenCodeTargets,
   } = dependencies;
 
   let shutdownPromise = null;
@@ -92,6 +93,21 @@ export const createGracefulShutdownRuntime = (dependencies) => {
       }
     } else {
       console.log('Skipping OpenCode shutdown (external server)');
+    }
+
+    if (typeof disposeEphemeralOpenCodeTargets === 'function') {
+      try {
+        // Awaited: cloud-provisioned targets' teardown calls a destroy
+        // webhook over the network (not just local bookkeeping), so this
+        // can be a real async operation, unlike Phase 1's synchronous
+        // local-only deregister.
+        const disposedIds = await disposeEphemeralOpenCodeTargets();
+        if (Array.isArray(disposedIds) && disposedIds.length > 0) {
+          console.log(`Deregistered ${disposedIds.length} ephemeral OpenCode target(s) on shutdown`);
+        }
+      } catch (error) {
+        console.warn('Error disposing ephemeral OpenCode targets:', error);
+      }
     }
 
     const server = getServer();

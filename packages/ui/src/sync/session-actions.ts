@@ -27,6 +27,7 @@ import {
   withoutReviewSessionLink,
   type SessionMetadataRecord,
 } from "@/lib/sessionReviewMetadata"
+import { withCloudTargetId } from "@/lib/sessionCloudMetadata"
 
 const MESSAGE_REFETCH_LIMIT = 100
 const SEND_CONFIRMATION_REFETCH_LIMIT = 30
@@ -433,15 +434,42 @@ export async function createSession(
   directoryOverride?: string | null,
   parentID?: string | null,
   metadata?: Record<string, unknown>,
+  targetId?: string,
 ): Promise<Session | null> {
   try {
+    const requestDirectory = directoryOverride ?? dir()
+    // Persist the target association in the session's own metadata (not just
+    // used transiently to pick which SDK client sends this request) so
+    // reopening the session later — after a reload, from the sidebar — still
+    // knows which ephemeral target it belongs to.
+    const requestMetadata = targetId ? withCloudTargetId(metadata ?? {}, targetId) : metadata
     const session = await opencodeClient.createSession({
       title,
       parentID: parentID ?? undefined,
-      metadata,
-    }, directoryOverride ?? dir())
+      metadata: requestMetadata,
+      targetId,
+    }, requestDirectory)
 
     const sessionDirectory = (session as { directory?: string | null }).directory ?? null
+    useGlobalSessionsStore.getState().upsertSession(session)
+
+    if (targetId) {
+      // Cloud-target sessions never route through the default backend — the
+      // directory below only resolves via the x-opencode-target header, so
+      // registering it in the default routing index/current-session state
+      // (which drive calls that DON'T carry that header) would just 404.
+      // The cloud pipeline registry is this session's routing/live-state
+      // source of truth instead; see cloud-pipeline-registry.ts.
+      // Dynamic import: cloud-pipeline-registry.ts imports from sync-context.tsx,
+      // which imports this module — a static import here would be a cycle.
+      const { startCloudTargetPipeline } = await import("./cloud-pipeline-registry")
+      const cloudDirectory = sessionDirectory ?? requestDirectory ?? ""
+      startCloudTargetPipeline(targetId, cloudDirectory, session)
+      useSessionUIStore.getState().setCurrentCloudSession(session.id, cloudDirectory)
+      useSessionUIStore.getState().markSessionAsOpenChamberCreated(session.id)
+      return session
+    }
+
     // Pre-populate routing index so SSE events arriving before session.created
     // can be routed to the correct child store
     if (sessionDirectory) {
@@ -449,7 +477,6 @@ export async function createSession(
     }
     useSessionUIStore.getState().setCurrentSession(session.id, sessionDirectory)
     useSessionUIStore.getState().markSessionAsOpenChamberCreated(session.id)
-    useGlobalSessionsStore.getState().upsertSession(session)
     return session
   } catch (error) {
     console.error("[session-actions] createSession failed", error)

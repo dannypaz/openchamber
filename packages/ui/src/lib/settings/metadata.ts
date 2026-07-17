@@ -23,6 +23,7 @@ export type SettingsPageSlug =
   | 'notifications'
   | 'voice'
   | 'tunnel'
+  | 'cloud'
   | 'about';
 
 type SettingsPageGroup =
@@ -197,6 +198,7 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
   { slug: 'notifications', title: 'Notifications', group: 'general', kind: 'single', keywords: ['alerts', 'native', 'summary', 'summarization'], },
   { slug: 'voice', title: 'Voice', group: 'advanced', kind: 'single', keywords: ['tts', 'speech', 'voice'], isAvailable: (ctx) => !ctx.isVSCode },
   { slug: 'tunnel', title: 'Remote Tunnel', group: 'advanced', kind: 'single', keywords: ['tunnel', 'cloudflare', 'qr', 'remote', 'mobile', 'share'], isAvailable: (ctx) => !ctx.isVSCode },
+  { slug: 'cloud', title: 'Cloud VMs', group: 'advanced', kind: 'single', keywords: ['cloud', 'vm', 'microvm', 'ephemeral', 'provisioning', 'webhook', 'sandbox'], isAvailable: (ctx) => !ctx.isVSCode },
   { slug: 'about', title: 'About', group: 'advanced', kind: 'single', keywords: ['about', 'version', 'updates', 'release', 'changelog'], isAvailable: (ctx) => ctx.isMobile },
 ] as const;
 

@@ -128,6 +128,101 @@ describe('settings helpers', () => {
     });
   });
 
+  it('sanitizes the persisted cloudProvisioning settings', () => {
+    const helpers = createTestHelpers();
+
+    expect(helpers.sanitizeSettingsUpdate({
+      cloudProvisioning: {
+        enabled: true,
+        provisionWebhookUrl: ' https://infra.example.com/provision ',
+        destroyWebhookUrl: ' https://infra.example.com/destroy ',
+        webhookAuthToken: ' secret ',
+        idleTimeoutMinutes: 30,
+        maxLifetimeMinutes: 480,
+      },
+    })).toEqual({
+      cloudProvisioning: {
+        enabled: true,
+        provisionWebhookUrl: 'https://infra.example.com/provision',
+        destroyWebhookUrl: 'https://infra.example.com/destroy',
+        webhookAuthToken: 'secret',
+        idleTimeoutMinutes: 30,
+        maxLifetimeMinutes: 480,
+      },
+    });
+  });
+
+  it('omits enabled from a partial cloudProvisioning update instead of defaulting it to false', () => {
+    const helpers = createTestHelpers();
+
+    expect(helpers.sanitizeSettingsUpdate({
+      cloudProvisioning: { idleTimeoutMinutes: 45 },
+    })).toEqual({
+      cloudProvisioning: { idleTimeoutMinutes: 45 },
+    });
+  });
+
+  it('caps cloudProvisioning timeout minutes rather than passing them through unbounded', () => {
+    const helpers = createTestHelpers();
+
+    const result = helpers.sanitizeSettingsUpdate({
+      cloudProvisioning: { idleTimeoutMinutes: 999999, maxLifetimeMinutes: 999999 },
+    });
+    expect(result.cloudProvisioning.idleTimeoutMinutes).toBeLessThanOrEqual(7 * 24 * 60);
+    expect(result.cloudProvisioning.maxLifetimeMinutes).toBeLessThanOrEqual(7 * 24 * 60);
+  });
+
+  it('deep-merges cloudProvisioning so a partial save cannot wipe a previously-stored webhook token', () => {
+    const helpers = createTestHelpers();
+
+    const initial = helpers.mergePersistedSettings({}, helpers.sanitizeSettingsUpdate({
+      cloudProvisioning: {
+        enabled: true,
+        provisionWebhookUrl: 'https://infra.example.com/provision',
+        webhookAuthToken: 'super-secret-token',
+      },
+    }));
+
+    // Simulate a UI round trip: the client only ever sees a redacted read
+    // (formatSettingsResponse never returns the raw token), then saves back
+    // an update touching an unrelated field using what it received.
+    const partial = helpers.mergePersistedSettings(initial, helpers.sanitizeSettingsUpdate({
+      cloudProvisioning: { idleTimeoutMinutes: 45 },
+    }));
+
+    expect(partial.cloudProvisioning.webhookAuthToken).toBe('super-secret-token');
+    expect(partial.cloudProvisioning.enabled).toBe(true);
+    expect(partial.cloudProvisioning.idleTimeoutMinutes).toBe(45);
+  });
+
+  it('redacts webhookAuthToken from formatSettingsResponse but reports whether one is set', () => {
+    const helpers = createTestHelpers();
+
+    const withToken = helpers.formatSettingsResponse({
+      cloudProvisioning: { enabled: true, webhookAuthToken: 'super-secret-token' },
+    });
+    expect(withToken.cloudProvisioning.webhookAuthToken).toBeUndefined();
+    expect(withToken.hasCloudProvisioningWebhookAuthToken).toBe(true);
+
+    const withoutToken = helpers.formatSettingsResponse({
+      cloudProvisioning: { enabled: true },
+    });
+    expect(withoutToken.hasCloudProvisioningWebhookAuthToken).toBe(false);
+  });
+
+  it('an explicit null clears a previously-stored cloudProvisioning webhook token', () => {
+    const helpers = createTestHelpers();
+
+    const initial = helpers.mergePersistedSettings({}, helpers.sanitizeSettingsUpdate({
+      cloudProvisioning: { webhookAuthToken: 'super-secret-token' },
+    }));
+    const cleared = helpers.mergePersistedSettings(initial, helpers.sanitizeSettingsUpdate({
+      cloudProvisioning: { webhookAuthToken: null },
+    }));
+
+    expect(cleared.cloudProvisioning.webhookAuthToken).toBeNull();
+  });
+
   it('sanitizes the persisted permission auto-accept policy', () => {
     const helpers = createTestHelpers();
 
