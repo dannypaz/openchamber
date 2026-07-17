@@ -491,10 +491,11 @@ type LocalInstanceSwitcherProps = {
   refreshCurrentInstanceLabel: () => Promise<void>;
 };
 
-// Compact instance-switcher chip that sits next to the workspace name, so the
-// header reads [instance] [workspace] [branch]. Local/remote instances are an
-// Electron-only concept, so this renders nothing outside the desktop app —
-// the full instance/usage/mcp menu on the right stays the primary control.
+// Compact instance-switcher chip that sits next to the workspace/branch line,
+// so the subtitle row reads [instance] [workspace] [branch]. Local/remote
+// instances are an Electron-only concept, so this renders nothing outside the
+// desktop app — the full instance/usage/mcp menu on the right stays the
+// primary control.
 const LocalInstanceSwitcher = React.memo(function LocalInstanceSwitcher({
   isDesktopApp,
   currentInstanceLabel,
@@ -525,11 +526,11 @@ const LocalInstanceSwitcher = React.memo(function LocalInstanceSwitcher({
             <button
               type="button"
               aria-label={t('header.instanceSwitcher.openAria', { current: currentInstanceLabel })}
-              className="app-region-no-drag mr-1.5 inline-flex h-6 max-w-[8rem] flex-shrink-0 items-center gap-1 rounded-md px-1.5 typography-micro font-medium text-muted-foreground/80 transition-colors hover:bg-interactive-hover/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="app-region-no-drag inline-flex h-4 max-w-[7rem] flex-shrink-0 items-center gap-0.5 rounded px-1 text-muted-foreground/75 transition-colors hover:bg-interactive-hover/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <Icon name="stack" className="h-3 w-3 flex-shrink-0" />
+              <Icon name="stack" className="h-2.5 w-2.5 flex-shrink-0" />
               <span className="truncate">{compactCurrentInstanceLabel}</span>
-              <Icon name="arrow-down-s" className="h-3 w-3 flex-shrink-0 opacity-60" />
+              <Icon name="arrow-down-s" className="h-2.5 w-2.5 flex-shrink-0 opacity-60" />
             </button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
@@ -2037,45 +2038,47 @@ export const Header: React.FC<HeaderProps> = ({
           TitlebarLeftControls overlay; the header reserves matching left space
           via padding (see headerStyle) when the sidebar is collapsed. */}
       <div className="flex min-w-0 flex-1 items-center">
-        <LocalInstanceSwitcher
-          isDesktopApp={isDesktopApp}
-          currentInstanceLabel={currentInstanceLabel}
-          compactCurrentInstanceLabel={compactCurrentInstanceLabel}
-          isOpen={isLocalInstanceSwitcherOpen}
-          setIsOpen={setIsLocalInstanceSwitcherOpen}
-          refreshCurrentInstanceLabel={refreshCurrentInstanceLabel}
-        />
-        <SessionSwitcherDropdown>
-          <button
-            type="button"
-            aria-label={t('sessions.switcher.openAria')}
-            className="app-region-no-drag mr-3 flex min-w-0 flex-col items-start rounded-md px-1 py-0.5 -my-0.5 text-left transition-colors hover:bg-interactive-hover/60 focus-visible:outline-none focus-visible:bg-interactive-hover/60"
-          >
-            <span className="truncate typography-ui-label text-[14px] font-normal leading-tight text-foreground max-w-full">
-              {isNewSessionDraftOpen ? t('sessions.switcher.draftTitle') : currentSessionTitle}
-            </span>
-            {(activeProjectLabel || currentBranchLabel || (!isNewSessionDraftOpen && worktreeBadgeKind)) ? (
-              <span className="flex min-w-0 max-w-full items-center gap-1.5 truncate typography-micro text-[10.5px] font-normal leading-tight text-muted-foreground/75">
-                {activeProjectLabel ? <span className="truncate">{activeProjectLabel}</span> : null}
-                {currentBranchLabel ? (
-                  <span className="inline-flex min-w-0 items-center gap-0.5">
-                    <Icon name="git-branch" className="h-3 w-3 flex-shrink-0 text-muted-foreground/70" />
-                    <span className="truncate">{currentBranchLabel}</span>
-                  </span>
-                ) : null}
-                {!isNewSessionDraftOpen && worktreeBadgeKind ? (
-                  <span className={cn(
-                    "inline-flex min-w-0 items-center gap-0.5",
-                    worktreeBadgeKind === 'attention' || worktreeBadgeKind === 'invalid' || worktreeBadgeKind === 'missing' ? 'text-status-warning' : 'text-muted-foreground/60'
-                  )}>
-                    <Icon name="alert" className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{worktreeBadge}</span>
-                  </span>
-                ) : null}
+        <div className="mr-3 flex min-w-0 flex-col items-start">
+          <SessionSwitcherDropdown>
+            <button
+              type="button"
+              aria-label={t('sessions.switcher.openAria')}
+              className="app-region-no-drag max-w-full rounded-md px-1 py-0.5 -my-0.5 text-left transition-colors hover:bg-interactive-hover/60 focus-visible:outline-none focus-visible:bg-interactive-hover/60"
+            >
+              <span className="block truncate typography-ui-label text-[14px] font-normal leading-tight text-foreground max-w-full">
+                {isNewSessionDraftOpen ? t('sessions.switcher.draftTitle') : currentSessionTitle}
               </span>
-            ) : null}
-          </button>
-        </SessionSwitcherDropdown>
+            </button>
+          </SessionSwitcherDropdown>
+          {(isDesktopApp || activeProjectLabel || currentBranchLabel || (!isNewSessionDraftOpen && worktreeBadgeKind)) ? (
+            <span className="flex min-w-0 max-w-full items-center gap-1.5 truncate typography-micro text-[10.5px] font-normal leading-tight text-muted-foreground/75 px-1">
+              <LocalInstanceSwitcher
+                isDesktopApp={isDesktopApp}
+                currentInstanceLabel={currentInstanceLabel}
+                compactCurrentInstanceLabel={compactCurrentInstanceLabel}
+                isOpen={isLocalInstanceSwitcherOpen}
+                setIsOpen={setIsLocalInstanceSwitcherOpen}
+                refreshCurrentInstanceLabel={refreshCurrentInstanceLabel}
+              />
+              {activeProjectLabel ? <span className="truncate">{activeProjectLabel}</span> : null}
+              {currentBranchLabel ? (
+                <span className="inline-flex min-w-0 items-center gap-0.5">
+                  <Icon name="git-branch" className="h-3 w-3 flex-shrink-0 text-muted-foreground/70" />
+                  <span className="truncate">{currentBranchLabel}</span>
+                </span>
+              ) : null}
+              {!isNewSessionDraftOpen && worktreeBadgeKind ? (
+                <span className={cn(
+                  "inline-flex min-w-0 items-center gap-0.5",
+                  worktreeBadgeKind === 'attention' || worktreeBadgeKind === 'invalid' || worktreeBadgeKind === 'missing' ? 'text-status-warning' : 'text-muted-foreground/60'
+                )}>
+                  <Icon name="alert" className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{worktreeBadge}</span>
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
 
         {tabs.length > 0 && (
           <div className="flex items-center gap-1 rounded-lg bg-[var(--surface-muted)]/50 p-1">
