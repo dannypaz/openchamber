@@ -28,6 +28,7 @@ import {
   type SessionMetadataRecord,
 } from "@/lib/sessionReviewMetadata"
 import { withCloudTargetId } from "@/lib/sessionCloudMetadata"
+import { withContextObligatoryMessage, type ContextObligatoryMessage } from "@/lib/contextObligatoryMessages"
 
 const MESSAGE_REFETCH_LIMIT = 100
 const SEND_CONFIRMATION_REFETCH_LIMIT = 30
@@ -437,7 +438,12 @@ export async function createSession(
   targetId?: string,
 ): Promise<Session | null> {
   try {
-    const requestDirectory = directoryOverride ?? dir()
+    // Capture the effective directory used for session creation so we can fall
+    // back to it when the server response omits the `directory` field.
+    // Without this, setCurrentSession would fall through to a stale
+    // opencodeClient.getDirectory() value and group the session under the
+    // wrong project (closes #1637, #2270).
+    const effectiveDirectory = directoryOverride ?? dir()
     // Persist the target association in the session's own metadata (not just
     // used transiently to pick which SDK client sends this request) so
     // reopening the session later — after a reload, from the sidebar — still
@@ -448,9 +454,9 @@ export async function createSession(
       parentID: parentID ?? undefined,
       metadata: requestMetadata,
       targetId,
-    }, requestDirectory)
+    }, effectiveDirectory)
 
-    const sessionDirectory = (session as { directory?: string | null }).directory ?? null
+    const sessionDirectory = (session as { directory?: string | null }).directory ?? effectiveDirectory ?? null
     useGlobalSessionsStore.getState().upsertSession(session)
 
     if (targetId) {
@@ -463,7 +469,7 @@ export async function createSession(
       // Dynamic import: cloud-pipeline-registry.ts imports from sync-context.tsx,
       // which imports this module — a static import here would be a cycle.
       const { startCloudTargetPipeline } = await import("./cloud-pipeline-registry")
-      const cloudDirectory = sessionDirectory ?? requestDirectory ?? ""
+      const cloudDirectory = sessionDirectory ?? effectiveDirectory ?? ""
       startCloudTargetPipeline(targetId, cloudDirectory, session)
       useSessionUIStore.getState().setCurrentCloudSession(session.id, cloudDirectory)
       useSessionUIStore.getState().markSessionAsOpenChamberCreated(session.id)
@@ -496,6 +502,19 @@ export async function patchSessionMetadata(
   useGlobalSessionsStore.getState().upsertSession(updated)
   const sessionDirectory = (updated as { directory?: string | null }).directory ?? targetDirectory
   if (sessionDirectory) registerSessionDirectory(updated.id, sessionDirectory)
+  return updated
+}
+
+export async function setContextObligatoryMessage(
+  sessionId: string,
+  directory: string | null | undefined,
+  message: ContextObligatoryMessage,
+  pinned: boolean,
+): Promise<Session> {
+  const updated = await patchSessionMetadata(sessionId, directory, (metadata) =>
+    withContextObligatoryMessage(metadata, message, pinned))
+  const sessionDirectory = (updated as Session & { directory?: string | null }).directory ?? directory ?? undefined
+  mirrorSessionIntoLiveStores(updated, sessionDirectory ?? undefined)
   return updated
 }
 

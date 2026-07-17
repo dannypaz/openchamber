@@ -59,7 +59,6 @@ import type { UsageWindow } from '@/types';
 import type { SessionContextUsage } from '@/stores/types/sessionTypes';
 import { DesktopHostSwitcherDialog } from '@/components/desktop/DesktopHostSwitcher';
 import { OpenInAppButton } from '@/components/desktop/OpenInAppButton';
-import { forceKillTerminal } from '@/lib/terminalApi';
 import { useTerminalStore } from '@/stores/useTerminalStore';
 import { ProjectActionsButton } from '@/components/layout/ProjectActionsButton';
 import { SessionSwitcherDropdown } from '@/components/session/SessionSwitcherDropdown';
@@ -70,6 +69,7 @@ import { useI18n } from '@/lib/i18n';
 import { runtimeFetch } from '@/lib/runtime-fetch';
 import { getRuntimeBearerTokenSync } from '@/lib/runtime-auth';
 import { getRuntimeApiBaseUrl } from '@/lib/runtime-switch';
+import { forceKillTerminal } from '@/lib/terminalApi';
 import type { Session } from '@opencode-ai/sdk/v2/client';
 import type { IconName } from "@/components/icon/icons";
 
@@ -1678,7 +1678,8 @@ export const Header: React.FC<HeaderProps> = ({
   }, [shortcutOverrides]);
 
   useEffect(() => {
-    if (!isMobile && (activeMainTab === 'git' || activeMainTab === 'terminal' || activeMainTab === 'diff' || activeMainTab === 'files' || activeMainTab === 'context')) {
+    // Project actions may intentionally promote the terminal to the desktop main view.
+    if (!isMobile && (activeMainTab === 'git' || activeMainTab === 'diff' || activeMainTab === 'files' || activeMainTab === 'context')) {
       setActiveMainTab('chat');
     }
   }, [activeMainTab, isMobile, setActiveMainTab]);
