@@ -517,6 +517,7 @@ export const dict: Record<I18nKey, string> = {
   'sessions.sidebar.session.share.successTitle': '会话已分享',
   'sessions.sidebar.session.share.successDescription': '你可以在菜单中复制链接。',
   'sessions.sidebar.session.share.error': '无法分享会话',
+  'sessions.sidebar.session.share.disabled': '会话分享已停用。请在设置中启用后再分享会话。',
   'sessions.sidebar.session.share.copyUrlError': '复制 URL 失败',
   'sessions.sidebar.session.unshare.success': '会话已取消分享',
   'sessions.sidebar.session.unshare.error': '无法取消分享会话',

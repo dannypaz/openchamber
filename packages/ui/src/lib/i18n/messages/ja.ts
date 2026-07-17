@@ -517,6 +517,7 @@ export const dict: Record<I18nKey, string> = {
   'sessions.sidebar.session.share.successTitle': 'セッションを共有しました',
   'sessions.sidebar.session.share.successDescription': 'メニューからリンクをコピーできます。',
   'sessions.sidebar.session.share.error': 'セッションを共有できません',
+  'sessions.sidebar.session.share.disabled': 'セッション共有は無効になっています。共有するには設定で有効にしてください。',
   'sessions.sidebar.session.share.copyUrlError': 'URLのコピーに失敗しました',
   'sessions.sidebar.session.unshare.success': 'セッションの共有を解除しました',
   'sessions.sidebar.session.unshare.error': 'セッションの共有を解除できません',

@@ -358,6 +358,7 @@ export const dict = {
   'sessions.sidebar.session.share.successTitle': 'Session partagée',
   'sessions.sidebar.session.share.successDescription': 'Vous pouvez copier le lien depuis le menu.',
   'sessions.sidebar.session.share.error': 'Impossible de partager la session',
+  'sessions.sidebar.session.share.disabled': 'Le partage de session est désactivé. Activez-le dans les Paramètres pour partager des sessions.',
   'sessions.sidebar.session.share.copyUrlError': 'Échec de la copie de URL',
   'sessions.sidebar.session.unshare.success': 'Session non partagée',
   'sessions.sidebar.session.unshare.error': 'Impossible d\'annuler le partage de session',

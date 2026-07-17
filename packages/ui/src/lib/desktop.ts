@@ -191,8 +191,12 @@ export type DesktopSettings = {
 
   // User-added skills catalogs (persisted to ~/.config/openchamber/settings.json)
   skillCatalogs?: SkillCatalogConfig[];
-  // Opt-in to send anonymous usage reports for update checks (default: true)
+  // Reserved usage-reporting consent flag. No telemetry call currently reads this —
+  // update checks no longer phone home (see packages/web/server/lib/package-manager.js).
   reportUsage?: boolean;
+  // Opt-in to allow the session Share feature, which uploads a full chat session to
+  // OpenCode's hosted service and generates a public link (default: false)
+  allowSessionSharing?: boolean;
 
   // Global behavior prompt — synced to ~/.config/opencode/AGENTS.md
   globalBehaviorPrompt?: string;

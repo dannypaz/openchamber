@@ -42,6 +42,7 @@ import { parseMultiRunSessionTitle } from '@/lib/multirun/title';
 import { MultiRunFusionDialog } from '@/components/multirun/MultiRunFusionDialog';
 import { FusionIcon } from '@/components/icons/FusionIcon';
 import { RuntimeAPIContext } from '@/contexts/runtimeAPIContext';
+import { useUIStore } from '@/stores/useUIStore';
 
 type Folder = { id: string; name: string; sessionIds: string[] };
 
@@ -206,6 +207,7 @@ const QuickSessionAction = React.memo(function QuickSessionAction({
 
 function SessionNodeItemComponent(props: Props): React.ReactNode {
   const { t } = useI18n();
+  const allowSessionSharing = useUIStore(state => state.allowSessionSharing);
   const {
     node,
     depth = 0,
@@ -818,10 +820,12 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
         {isPinnedSession ? t('sessions.sidebar.session.menu.unpin') : t('sessions.sidebar.session.menu.pin')}
       </Item>
       {!resolvedSession.share ? (
-        <Item onClick={() => handleShareSession(resolvedSession)} className="[&>svg]:mr-1">
-          <Icon name="share-2" className="mr-1 h-4 w-4" />
-          {t('sessions.sidebar.session.menu.share')}
-        </Item>
+        allowSessionSharing ? (
+          <Item onClick={() => handleShareSession(resolvedSession)} className="[&>svg]:mr-1">
+            <Icon name="share-2" className="mr-1 h-4 w-4" />
+            {t('sessions.sidebar.session.menu.share')}
+          </Item>
+        ) : null
       ) : (
         <>
           <Item onClick={() => { if (resolvedSession.share?.url) handleCopyShareUrl(resolvedSession.share.url, session.id); }} className="[&>svg]:mr-1">

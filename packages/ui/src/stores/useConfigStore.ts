@@ -1529,10 +1529,6 @@ export const useConfigStore = create<ConfigStore>()(
 
                     for (let attempt = 0; attempt < 3; attempt++) {
                         try {
-                            ensureModelsMetadataFetch(
-                                () => get().modelsMetadata,
-                                (metadata) => set({ modelsMetadata: metadata }),
-                            );
                             const apiResult = await measureStartupTrace(
                                 'loadProviders:api',
                                 () => opencodeClient.getProvidersForConfig(fromDirectoryKey(directoryKey)),
@@ -1540,6 +1536,16 @@ export const useConfigStore = create<ConfigStore>()(
                             );
                             const providers = Array.isArray(apiResult?.providers) ? apiResult.providers : [];
                             const defaults = apiResult?.default || {};
+
+                            // Only pull the models.dev catalog once a provider is actually
+                            // configured — there is nothing useful to enrich before that,
+                            // so skip the outbound fetch for users with no provider added.
+                            if (providers.length > 0) {
+                                ensureModelsMetadataFetch(
+                                    () => get().modelsMetadata,
+                                    (metadata) => set({ modelsMetadata: metadata }),
+                                );
+                            }
 
                             const processedProviders: ProviderWithModelList[] = providers.map((provider) => {
                                 const modelRecord = provider.models ?? {};

@@ -145,6 +145,7 @@ const VisualSectionContent: React.FC = () => {
         ...(!isVSCode ? ['terminalShell' as const] : []),
         ...(!isVSCode ? ['terminalLoginShell' as const] : []),
         'reportUsage',
+        'allowSessionSharing',
     ]} />;
 };
 

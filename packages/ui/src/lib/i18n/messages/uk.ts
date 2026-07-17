@@ -517,6 +517,7 @@ export const dict: Record<I18nKey, string> = {
   "sessions.sidebar.session.share.successTitle": "Сесією поділилися",
   "sessions.sidebar.session.share.successDescription": "Ви можете скопіювати посилання з меню.",
   "sessions.sidebar.session.share.error": "Не вдалося поділитися сесією",
+  "sessions.sidebar.session.share.disabled": "Спільний доступ до сеансу вимкнено. Увімкніть його в Налаштуваннях, щоб ділитися сеансами.",
   "sessions.sidebar.session.share.copyUrlError": "Не вдалося скопіювати URL",
   "sessions.sidebar.session.unshare.success": "Спільний доступ до сесій закрито",
   "sessions.sidebar.session.unshare.error": "Не вдалося скасувати спільний доступ до сесії",

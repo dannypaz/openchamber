@@ -3,7 +3,7 @@ import type { Session } from '@opencode-ai/sdk/v2';
 import { toast } from '@/components/ui';
 import { copyTextToClipboard } from '@/lib/clipboard';
 import { useI18n } from '@/lib/i18n';
-import type { MainTab } from '@/stores/useUIStore';
+import { useUIStore, type MainTab } from '@/stores/useUIStore';
 
 type DeleteSessionConfirmSetter = React.Dispatch<React.SetStateAction<{
   session: Session;
@@ -123,6 +123,10 @@ export const useSessionActions = (args: Args) => {
   }, [args]);
 
   const handleShareSession = React.useCallback(async (session: Session) => {
+    if (!useUIStore.getState().allowSessionSharing) {
+      toast.error(t('sessions.sidebar.session.share.disabled'));
+      return;
+    }
     const result = await args.shareSession(session.id);
     if (result && result.share?.url) {
       toast.success(t('sessions.sidebar.session.share.successTitle'), {

@@ -672,6 +672,7 @@ interface UIStore {
   mobileSessionFilterProjectId: string | null;
   isExpandedInput: boolean;
   reportUsage: boolean;
+  allowSessionSharing: boolean;
   shortcutOverrides: Record<string, ShortcutCombo>;
   fileEditorKeymap: FileEditorKeymap;
 
@@ -839,6 +840,7 @@ interface UIStore {
   openMultiRunLauncher: () => void;
   openMultiRunLauncherWithPrompt: (prompt: string) => void;
   setReportUsage: (value: boolean) => void;
+  setAllowSessionSharing: (value: boolean) => void;
   setShortcutOverride: (actionId: string, combo: ShortcutCombo) => void;
   clearShortcutOverride: (actionId: string) => void;
   resetAllShortcutOverrides: () => void;
@@ -988,6 +990,7 @@ export const useUIStore = create<UIStore>()(
         mobileSessionFilterProjectId: null,
         isExpandedInput: false,
         reportUsage: true,
+        allowSessionSharing: false,
         shortcutOverrides: {},
         fileEditorKeymap: 'default',
 
@@ -2188,6 +2191,9 @@ export const useUIStore = create<UIStore>()(
         },
         setReportUsage: (value) => {
           set({ reportUsage: value });
+        },
+        setAllowSessionSharing: (value) => {
+          set({ allowSessionSharing: value });
         },
         viewPagerPage: 'center',
         setViewPagerPage: (page: 'left' | 'center' | 'right') => {

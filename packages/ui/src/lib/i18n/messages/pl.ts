@@ -517,6 +517,7 @@ export const dict: Record<I18nKey, string> = {
   'sessions.sidebar.session.share.successTitle': 'Sesja udostępniona',
   'sessions.sidebar.session.share.successDescription': 'Możesz skopiować link z menu.',
   'sessions.sidebar.session.share.error': 'Nie można udostępnić sesji',
+  'sessions.sidebar.session.share.disabled': 'Udostępnianie sesji jest wyłączone. Włącz je w Ustawieniach, aby udostępniać sesje.',
   'sessions.sidebar.session.share.copyUrlError': 'Nie udało się skopiować URL',
   'sessions.sidebar.session.unshare.success': 'Cofnięto udostępnienie sesji',
   'sessions.sidebar.session.unshare.error': 'Nie można cofnąć udostępnienia sesji',
