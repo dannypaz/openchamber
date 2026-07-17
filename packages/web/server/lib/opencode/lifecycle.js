@@ -416,7 +416,11 @@ export const createOpenCodeLifecycleRuntime = (deps) => {
     }
   };
 
-  const probeExternalOpenCode = async (port, origin) => {
+  // authHeaderOverride lets callers probe an instance that isn't the default
+  // managed/external one (e.g. an ephemeral cloud target, which carries its
+  // own provisioner-issued credential — see ephemeral-targets.js) without
+  // this function's own default-backend call sites having to change.
+  const probeExternalOpenCode = async (port, origin, authHeaderOverride) => {
     if (!port || port <= 0) {
       return false;
     }
@@ -429,7 +433,7 @@ export const createOpenCodeLifecycleRuntime = (deps) => {
         method: 'GET',
         headers: {
           Accept: 'application/json',
-          ...getOpenCodeAuthHeaders(),
+          ...(authHeaderOverride ?? getOpenCodeAuthHeaders()),
         },
         signal: controller.signal,
       });

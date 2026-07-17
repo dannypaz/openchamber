@@ -60,10 +60,16 @@ describe('cloud-provisioning', () => {
     servers.push(provisionerServer);
     const provisionerPort = provisionerServer.address().port;
 
-    const probeExternalOpenCode = async (_port, origin) => {
+    // Exercises the real probe/auth contract: the VM app's /global/health
+    // only accepts the target's OWN authToken (not some fixed credential),
+    // so this only passes if the caller actually threads getOpenCodeAuthHeadersFor's
+    // per-target Basic-Auth header through to the probe — the bug this
+    // regression test guards against had the probe always using the
+    // default backend's global auth instead.
+    const probeExternalOpenCode = async (_port, origin, authHeaderOverride) => {
       try {
         const response = await fetch(`${origin}/global/health`, {
-          headers: { Authorization: `Basic ${Buffer.from('opencode:vm-secret').toString('base64')}` },
+          headers: { ...authHeaderOverride },
         });
         if (!response.ok) return false;
         const body = await response.json();
@@ -73,9 +79,17 @@ describe('cloud-provisioning', () => {
       }
     };
 
+    const getOpenCodeAuthHeadersFor = (target) => {
+      const password = typeof target?.authToken === 'string' ? target.authToken : '';
+      if (!password) return {};
+      const username = typeof target?.authUsername === 'string' && target.authUsername ? target.authUsername : 'opencode';
+      return { Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}` };
+    };
+
     const ephemeralTargets = createEphemeralOpenCodeTargetsRuntime({
       crypto,
       probeExternalOpenCode,
+      getOpenCodeAuthHeadersFor,
       healthIntervalMs: 10_000,
       log: silentLog,
     });

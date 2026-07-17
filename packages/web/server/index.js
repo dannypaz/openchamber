@@ -1068,6 +1068,7 @@ const openCodeLifecycleRuntime = createOpenCodeLifecycleRuntime({
 const ephemeralOpenCodeTargetsRuntime = createEphemeralOpenCodeTargetsRuntime({
   crypto,
   probeExternalOpenCode: openCodeLifecycleRuntime.probeExternalOpenCode,
+  getOpenCodeAuthHeadersFor: openCodeAuthStateRuntime.getOpenCodeAuthHeadersFor,
 });
 
 // Layered on top of ephemeralOpenCodeTargetsRuntime — owns calling the

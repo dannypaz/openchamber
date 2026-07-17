@@ -15,6 +15,14 @@ export const createEphemeralOpenCodeTargetsRuntime = (deps) => {
   const {
     crypto,
     probeExternalOpenCode,
+    // Each ephemeral target carries its own provisioner-issued credential,
+    // never the default backend's — probing (or proxying to) it must use
+    // this, not the plain probeExternalOpenCode default. See auth-state-
+    // runtime.js's getOpenCodeAuthHeadersFor, already used this way by
+    // proxy.js for the request-forwarding path; this wires the same
+    // function into the health-check path, which was missed in the
+    // original registration/health-loop wiring.
+    getOpenCodeAuthHeadersFor,
     healthIntervalMs = DEFAULT_HEALTH_INTERVAL_MS,
     log = console,
   } = deps;
@@ -38,7 +46,7 @@ export const createEphemeralOpenCodeTargetsRuntime = (deps) => {
         clearInterval(timer);
         return;
       }
-      const healthy = await probeExternalOpenCode(current.port, current.baseUrl).catch(() => false);
+      const healthy = await probeExternalOpenCode(current.port, current.baseUrl, getOpenCodeAuthHeadersFor(current)).catch(() => false);
       const stillPresent = targets.get(target.id);
       if (!stillPresent) return;
       stillPresent.lastHealthAt = now();
@@ -69,7 +77,7 @@ export const createEphemeralOpenCodeTargetsRuntime = (deps) => {
     }
 
     const baseUrl = `http://${trimmedHost}:${numericPort}`;
-    const healthy = await probeExternalOpenCode(numericPort, baseUrl);
+    const healthy = await probeExternalOpenCode(numericPort, baseUrl, getOpenCodeAuthHeadersFor({ authToken, authUsername }));
     if (!healthy) {
       throw new Error(`Ephemeral target "${targetId}" failed its initial health check at ${baseUrl}`);
     }
