@@ -373,7 +373,13 @@ const resolveDefaultAgentModelSelection = ({
 
     if (effectiveDefaultModel) {
         const parsed = parseModelString(effectiveDefaultModel);
-        if (parsed && hasProviderModel(providers, parsed.providerId, parsed.modelId)) {
+        // The Auto sentinel never appears in `providers`, so it must bypass the
+        // hasProviderModel gate below — same treatment as resolveProviderModelSelection.
+        if (parsed?.providerId === AUTO_ROUTER_PROVIDER_ID && parsed?.modelId === AUTO_ROUTER_MODEL_ID) {
+            providerId = AUTO_ROUTER_PROVIDER_ID;
+            modelId = AUTO_ROUTER_MODEL_ID;
+            variant = undefined;
+        } else if (parsed && hasProviderModel(providers, parsed.providerId, parsed.modelId)) {
             providerId = parsed.providerId;
             modelId = parsed.modelId;
             variant = resolveVariant(providerId, modelId, projectDefaultModel ? undefined : settingsDefaultVariant);
@@ -951,10 +957,14 @@ const resolveSelectionWithManualGuard = ({
     const manualAgentName = currentAgentName && agents.some((agent) => agent.name === currentAgentName)
         ? currentAgentName
         : undefined;
-    const manualModelValid = !!currentProviderId
+    const isManualAutoSelection = currentProviderId === AUTO_ROUTER_PROVIDER_ID && currentModelId === AUTO_ROUTER_MODEL_ID;
+    // The Auto sentinel never appears in `providers`, so it must bypass the
+    // hasProviderModel gate below — same treatment as resolveProviderModelSelection —
+    // otherwise a manually-selected Auto session would be silently reset on refresh.
+    const manualModelValid = isManualAutoSelection || (!!currentProviderId
         && !!currentModelId
         && hasProviderModel(providers, currentProviderId, currentModelId)
-        && hasValidVariant(providers, currentProviderId, currentModelId, currentVariant);
+        && hasValidVariant(providers, currentProviderId, currentModelId, currentVariant));
     const preserveManual = selectionSource === "manual" && (!!manualAgentName || manualModelValid);
 
     return {
@@ -2164,9 +2174,10 @@ export const useConfigStore = create<ConfigStore>()(
                             }
                             if (openChamberDefaults.defaultModel) {
                                 const parsed = parseModelString(openChamberDefaults.defaultModel);
-                                if (!parsed || !validateModel(parsed.providerId, parsed.modelId)) {
+                                const isAutoSentinel = parsed?.providerId === AUTO_ROUTER_PROVIDER_ID && parsed?.modelId === AUTO_ROUTER_MODEL_ID;
+                                if (!parsed || (!isAutoSentinel && !validateModel(parsed.providerId, parsed.modelId))) {
                                     invalidSettings.defaultModel = '';
-                                } else if (openChamberDefaults.defaultVariant) {
+                                } else if (!isAutoSentinel && openChamberDefaults.defaultVariant) {
                                     const provider = providers.find((p) => p.id === parsed.providerId);
                                     const model = provider?.models.find((m) => m.id === parsed.modelId) as { variants?: Record<string, unknown> } | undefined;
                                     const variants = model?.variants;

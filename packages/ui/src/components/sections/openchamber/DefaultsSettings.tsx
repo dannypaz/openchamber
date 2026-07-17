@@ -4,7 +4,7 @@ import { AgentSelector } from '@/components/sections/commands/AgentSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { updateDesktopSettings } from '@/lib/persistence';
-import { useConfigStore } from '@/stores/useConfigStore';
+import { useConfigStore, AUTO_ROUTER_PROVIDER_ID, AUTO_ROUTER_MODEL_ID } from '@/stores/useConfigStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useOpenInAppsStore } from '@/stores/useOpenInAppsStore';
 import { getRegisteredRuntimeAPIs } from '@/contexts/runtimeAPIRegistry';
@@ -60,6 +60,7 @@ export const DefaultsSettings: React.FC = () => {
   const [isLoading, setIsLoading] = React.useState(true);
 
   const parsedModel = React.useMemo(() => getDisplayModel(defaultModel), [defaultModel]);
+  const isDefaultModelAuto = parsedModel.providerId === AUTO_ROUTER_PROVIDER_ID && parsedModel.modelId === AUTO_ROUTER_MODEL_ID;
 
   React.useEffect(() => {
     const loadSettings = async () => {
@@ -158,8 +159,9 @@ export const DefaultsSettings: React.FC = () => {
       setSettingsDefaultModel(newValue);
 
       if (providerId && modelId) {
-        const provider = providers.find((p) => p.id === providerId);
-        if (provider) {
+        const isAutoSentinel = providerId === AUTO_ROUTER_PROVIDER_ID && modelId === AUTO_ROUTER_MODEL_ID;
+        const provider = isAutoSentinel ? undefined : providers.find((p) => p.id === providerId);
+        if (isAutoSentinel || provider) {
           setProvider(providerId);
           setModel(modelId);
         }
@@ -341,7 +343,9 @@ export const DefaultsSettings: React.FC = () => {
         <div className="mt-0 mb-1 typography-meta text-muted-foreground">
           {t('settings.openchamber.defaults.summaryPrefix')}
           {' '}
-          {parsedModel.providerId ? (
+          {isDefaultModelAuto ? (
+            <span className="text-foreground">{t('chat.modelControls.autoModel')}</span>
+          ) : parsedModel.providerId ? (
             <span className="text-foreground">
               {parsedModel.providerId}/{parsedModel.modelId}
               {supportsVariants ? ` (${defaultVariant ?? t('settings.openchamber.defaults.option.defaultLowercase')})` : ''}
@@ -362,7 +366,7 @@ export const DefaultsSettings: React.FC = () => {
             <span className="typography-ui-label text-foreground">{t('settings.openchamber.defaults.field.defaultModel')}</span>
           </div>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-fit sm:flex-initial">
-            <ModelSelector providerId={parsedModel.providerId} modelId={parsedModel.modelId} onChange={handleModelChange} />
+            <ModelSelector providerId={parsedModel.providerId} modelId={parsedModel.modelId} onChange={handleModelChange} showAutoOption />
           </div>
         </div>
 

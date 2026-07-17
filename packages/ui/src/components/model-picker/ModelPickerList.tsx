@@ -345,8 +345,12 @@ interface ModelPickerListProps {
   disabled?: boolean;
   // Optional pinned "Auto" row shown above Favorites — the router picks a
   // model per message rather than this being a real provider/model pair.
-  // Opt-in only: settings pickers (default model, small model override, …)
-  // must not offer Auto as a target.
+  // Opt-in only: safe for pickers that feed the model-resolution cascade
+  // (chat model, global/per-project default model — see
+  // resolveDefaultAgentModelSelection). Must NOT be offered on pickers whose
+  // value the Auto Router itself resolves into (small model override, Auto
+  // Router cheap/frontier tier overrides) — those need to stay concrete or
+  // the router has nothing real to resolve to.
   showAutoOption?: boolean;
   autoOptionProviderID?: string;
   autoOptionModelID?: string;

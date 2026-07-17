@@ -12,7 +12,7 @@ import { useOpenCodeReadiness } from '@/hooks/useOpenCodeReadiness';
 import { useDeviceInfo } from '@/lib/device';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { useConfigStore } from '@/stores/useConfigStore';
+import { useConfigStore, AUTO_ROUTER_PROVIDER_ID, AUTO_ROUTER_MODEL_ID } from '@/stores/useConfigStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { ModelPickerList, type ModelPickerEntry, type ModelPickerProvider } from '@/components/model-picker/ModelPickerList';
 
@@ -25,6 +25,12 @@ interface ModelSelectorProps {
     placeholder?: string;
     tooltipsEnabled?: boolean;
     dropdownPortalToBody?: boolean;
+    // Opt-in only — see the "Auto" opt-in note in ModelPickerList. Only pass this
+    // for pickers that set a *default* model consumed via the model-resolution
+    // cascade (global settings, per-project defaults), not for pickers whose
+    // value the Auto Router itself resolves into (small-model override, Auto
+    // Router tier overrides) — those must stay concrete to avoid circularity.
+    showAutoOption?: boolean;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -36,6 +42,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     placeholder,
     tooltipsEnabled = true,
     dropdownPortalToBody = false,
+    showAutoOption = false,
 }) => {
     const { t } = useI18n();
     const { isReady, isUnavailable } = useOpenCodeReadiness();
@@ -89,8 +96,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         costPerMillion: t('chat.modelControls.costPerMillion'),
     }), [placeholder, t]);
 
+    const isAutoSelected = providerId === AUTO_ROUTER_PROVIDER_ID && modelId === AUTO_ROUTER_MODEL_ID;
+    const autoModelLabel = t('chat.modelControls.autoModel');
     const selectedModel = providerId && modelId ? { providerID: providerId, modelID: modelId } : null;
-    const triggerLabel = providerId && modelId ? `${providerId}/${modelId}` : (placeholder || t('settings.agents.modelSelector.notSelected'));
+    const triggerLabel = isAutoSelected
+        ? autoModelLabel
+        : providerId && modelId ? `${providerId}/${modelId}` : (placeholder || t('settings.agents.modelSelector.notSelected'));
 
     const picker = (
         <ModelPickerList
@@ -112,6 +123,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             tooltipsEnabled={tooltipsEnabled && (isActuallyMobile ? isMobilePanelOpen : isDropdownOpen)}
             isFavorite={(entry) => isFavoriteModel(entry.providerID, entry.modelID)}
             onToggleFavorite={(entry) => toggleFavoriteModel(entry.providerID, entry.modelID)}
+            showAutoOption={showAutoOption}
+            autoOptionProviderID={AUTO_ROUTER_PROVIDER_ID}
+            autoOptionModelID={AUTO_ROUTER_MODEL_ID}
+            autoOptionLabel={autoModelLabel}
         />
     );
 
@@ -134,6 +149,8 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                                 <Icon name="loader-4" className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                                 <span className="typography-meta text-muted-foreground">{isUnavailable ? t('common.unavailable') : t('common.loading')}</span>
                             </>
+                        ) : isAutoSelected ? (
+                            <Icon name="pencil-ai" className="h-3.5 w-3.5 flex-shrink-0 text-primary/60" />
                         ) : providerId ? (
                             <ProviderLogo providerId={providerId} className="h-3.5 w-3.5 flex-shrink-0" />
                         ) : (
@@ -171,7 +188,13 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                         </>
                     ) : (
                         <>
-                            {providerId ? <ProviderLogo providerId={providerId} className="h-3.5 w-3.5 flex-shrink-0" /> : <Icon name="pencil-ai" className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />}
+                            {isAutoSelected ? (
+                                <Icon name="pencil-ai" className="h-3.5 w-3.5 flex-shrink-0 text-primary/60" />
+                            ) : providerId ? (
+                                <ProviderLogo providerId={providerId} className="h-3.5 w-3.5 flex-shrink-0" />
+                            ) : (
+                                <Icon name="pencil-ai" className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                            )}
                             <span className="typography-ui-label min-w-0 flex-1 truncate text-left font-normal text-foreground">{triggerLabel}</span>
                         </>
                     )}
