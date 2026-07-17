@@ -1,0 +1,12 @@
+/* Load KaTeX styles eagerly with the main bundle. Importing them inside the
+   lazy MarkdownRendererImpl chunk meant a stylesheet was injected late on the
+   first markdown render of a session; that late injection triggered a style
+   recalc during which the layered `.chat-message-column` width clamp briefly
+   lost, flashing message text to full width before it snapped back.
+
+   Kept in its own file, separate from index.css: Tailwind's PostCSS plugin
+   inlines @import chains that share a file with `@import "tailwindcss"`
+   without rebasing relative asset url()s, which breaks KaTeX's relative
+   font references at build time. Import this before index.css so the
+   `.katex` theme overrides in index.css still win the cascade. */
+@import "katex/dist/katex.min.css";
