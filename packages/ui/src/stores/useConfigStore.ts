@@ -25,8 +25,13 @@ import { getSyncConfig, subscribeToSyncConfigChanges } from "@/sync/sync-refs";
 const MODELS_DEV_API_URL = "https://models.dev/api.json";
 const MODELS_DEV_PROXY_URL = "/api/openchamber/models-metadata";
 
+// OpenCode's own server always reports this provider/model as available, even
+// with zero configured providers/auth — it's a free, no-token-required model
+// ("OpenCode Zen"). Default-selection cascades below must never auto-pick it;
+// it's excluded from the "first available provider" fallback so a fresh
+// install never silently ends up "connected" to it without the user
+// explicitly choosing it.
 const FALLBACK_PROVIDER_ID = "opencode";
-const FALLBACK_MODEL_ID = "big-pickle";
 // Sentinel selectedProviderId used by the providers UI while the "Add provider"
 // form is open. It is intentionally not a real provider id and must not be
 // persisted as a stable provider selection.
@@ -38,7 +43,6 @@ const GIT_UTILITY_PROVIDER_ID = "zen";
 // server-side right before sending.
 export const AUTO_ROUTER_PROVIDER_ID = "__auto__";
 export const AUTO_ROUTER_MODEL_ID = "__auto__";
-const GIT_UTILITY_PREFERRED_MODEL_ID = "big-pickle";
 const PROVIDER_CONFIG_REFRESH_CONCURRENCY = 4;
 
 const normalizeSttProvider = (value: unknown): 'local' | 'openai-compatible' | undefined => {
@@ -276,11 +280,10 @@ export const resolveProviderModelSelection = ({
         }
     }
 
-    if (hasProviderModel(providers, FALLBACK_PROVIDER_ID, FALLBACK_MODEL_ID)) {
-        return { providerId: FALLBACK_PROVIDER_ID, modelId: FALLBACK_MODEL_ID };
-    }
-
-    const firstProvider = providers[0];
+    // Never silently fall back to OpenCode's built-in free/no-auth provider
+    // (see FALLBACK_PROVIDER_ID) — the user must explicitly configure or
+    // pick a provider/model.
+    const firstProvider = providers.find((provider) => provider.id !== FALLBACK_PROVIDER_ID);
     const firstModel = firstProvider?.models[0];
     if (firstProvider && firstModel) {
         return { providerId: firstProvider.id, modelId: firstModel.id };
@@ -301,7 +304,8 @@ type DefaultAgentModelSelection = {
 //
 //   Agent: settings.defaultAgent → opencode default_agent → build → first primary → first
 //   Model: project.defaultModel → settings.defaultModel → resolved agent's pinned model+variant → opencode config.model
-//          → opencode/big-pickle → first
+//          → first configured provider (excluding OpenCode's built-in no-auth free provider, see
+//          FALLBACK_PROVIDER_ID — the user must explicitly configure/select a provider)
 //
 // The opencode default_agent / default model (config fields on the OpenCode server) are honored
 // only when our own settings have no valid default. OpenCode itself resolves a model the same way:
@@ -398,23 +402,25 @@ const resolveDefaultAgentModelSelection = ({
         }
     }
 
+    // Never silently fall back to OpenCode's built-in free/no-auth provider
+    // (see FALLBACK_PROVIDER_ID) — the user must explicitly configure or
+    // pick a provider/model.
     if (!providerId) {
-        if (hasProviderModel(providers, FALLBACK_PROVIDER_ID, FALLBACK_MODEL_ID)) {
-            providerId = FALLBACK_PROVIDER_ID;
-            modelId = FALLBACK_MODEL_ID;
-        } else {
-            const firstProvider = providers[0];
-            const firstModel = firstProvider?.models[0];
-            if (firstProvider && firstModel) {
-                providerId = firstProvider.id;
-                modelId = firstModel.id;
-            }
+        const firstProvider = providers.find((provider) => provider.id !== FALLBACK_PROVIDER_ID);
+        const firstModel = firstProvider?.models[0];
+        if (firstProvider && firstModel) {
+            providerId = firstProvider.id;
+            modelId = firstModel.id;
         }
     }
 
     return { agentName: resolvedAgent.name, providerId, modelId, variant };
 };
 
+// Only ever honors an explicit, already-configured zenModel setting — never
+// invents one (e.g. by picking a preferred or random zen model) when the
+// user hasn't opted in. A fresh install with no zenModel setting must
+// resolve to null, not a silently-connected free model.
 const resolveGitGenerationModelSelection = ({
     providers,
     settingsZenModel,
@@ -423,29 +429,16 @@ const resolveGitGenerationModelSelection = ({
     settingsZenModel?: string;
 }): GitModelSelection | null => {
     const zenModel = normalizeOptionalString(settingsZenModel);
-
-    if (!Array.isArray(providers) || providers.length === 0) {
-        if (zenModel) {
-            return { providerId: GIT_UTILITY_PROVIDER_ID, modelId: zenModel };
-        }
+    if (!zenModel) {
         return null;
     }
 
-    if (zenModel && hasProviderModel(providers, GIT_UTILITY_PROVIDER_ID, zenModel)) {
+    if (!Array.isArray(providers) || providers.length === 0) {
         return { providerId: GIT_UTILITY_PROVIDER_ID, modelId: zenModel };
     }
 
-    if (hasProviderModel(providers, GIT_UTILITY_PROVIDER_ID, GIT_UTILITY_PREFERRED_MODEL_ID)) {
-        return { providerId: GIT_UTILITY_PROVIDER_ID, modelId: GIT_UTILITY_PREFERRED_MODEL_ID };
-    }
-
-    const zenProvider = providers.find((provider) => provider.id === GIT_UTILITY_PROVIDER_ID);
-    if (zenProvider?.models.length) {
-        const randomIndex = Math.floor(Math.random() * zenProvider.models.length);
-        const randomModelId = normalizeOptionalString(zenProvider.models[randomIndex]?.id);
-        if (randomModelId) {
-            return { providerId: GIT_UTILITY_PROVIDER_ID, modelId: randomModelId };
-        }
+    if (hasProviderModel(providers, GIT_UTILITY_PROVIDER_ID, zenModel)) {
+        return { providerId: GIT_UTILITY_PROVIDER_ID, modelId: zenModel };
     }
 
     return null;
@@ -2178,7 +2171,7 @@ export const useConfigStore = create<ConfigStore>()(
 
                             // Resolve agent + model via the shared cascade:
                             //   settings.defaultAgent → opencode default_agent → build → first primary → first
-                            //   settings.defaultModel → resolved agent's model+variant → opencode/big-pickle → first
+                            //   settings.defaultModel → resolved agent's model+variant → opencode config.model → first
                             const resolvedDefault = resolveDefaultAgentModelSelection({
                                 agents: safeAgents,
                                 providers,
@@ -2527,7 +2520,7 @@ export const useConfigStore = create<ConfigStore>()(
 
                 // Re-applies the same priority cascade used at app startup (see loadAgents):
                 //   agent: settings.defaultAgent → build → first primary → first agent
-                //   model: project.defaultModel → settings.defaultModel → agent's preferred model → opencode/big-pickle → first
+                //   model: project.defaultModel → settings.defaultModel → agent's preferred model → opencode config.model → first
                 // Used when entering a fresh draft session so model/agent reset to defaults
                 // instead of sticking to the previously open session's selection.
                 applyDefaultModelAgentSelection: (options) => {
