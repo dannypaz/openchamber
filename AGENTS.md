@@ -53,6 +53,16 @@ Shared contracts must define intentional behavior for every applicable runtime: 
 - One failed entity must not erase or block unrelated complete entities.
 - Runtime-specific differences must be intentional and visible in code.
 
+## Upstream Sync Divergence Points
+
+When merging from `openchamber/openchamber`, git's line-based merge can auto-resolve a hunk with no conflict marker even when the result is broken — this happens whenever only one side (fork or upstream) touches a given line, so the other side's independent edit nearby is applied on top of stale assumptions. A passing `git merge` is not proof of a correct merge; diff the areas below explicitly against upstream every sync, not just whatever git flags as conflicted.
+
+Known divergence points to check on every upstream sync:
+
+- **GitHub-account switching lives in the sidebar footer, not `Header.tsx`.** The fork removed the `useRuntimeAPIs()`-backed GitHub-auth block from `Header.tsx` and relocated that UI to the sidebar footer. Upstream still owns and evolves that code path inside `Header.tsx`. Because the fork's removal and upstream's edits touch different lines, future upstream fixes/features there will keep merging "cleanly" while being silently dropped — they must be found and ported to the sidebar footer implementation by hand.
+
+Add a new bullet here whenever a fork change intentionally removes, relocates, or diverges from upstream behavior in a way a future line-based merge cannot detect on its own. Treat this list as required reading before opening an upstream-sync PR, not just a historical note.
+
 ## Documentation Discovery
 
 Before changing a module, search for the nearest `DOCUMENTATION.md`; before package-level work, read its `README.md`. Discover docs dynamically under `packages/**/DOCUMENTATION.md` rather than relying on a static exhaustive map.
