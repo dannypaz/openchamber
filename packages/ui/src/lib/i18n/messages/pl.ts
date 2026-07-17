@@ -957,6 +957,7 @@ export const dict: Record<I18nKey, string> = {
   'startup.initRecovery.retrying': 'Ponawianie...',
   'onboarding.desktopRecovery.placeholders.remoteServer': 'serwer zdalny',
   'onboarding.desktopRecovery.placeholders.unknownServer': 'nieznany',
+  'aboutDialog.actions.updateAvailable': 'Zaktualizuj do {version}',
   'aboutDialog.actions.copyDiagnostics': 'Kopiuj diagnostykę',
   'aboutDialog.actions.diagnosticsCopied': 'Diagnostyka skopiowana',
   'aboutDialog.actions.preparingDiagnostics': 'Przygotowywanie diagnostyki...',

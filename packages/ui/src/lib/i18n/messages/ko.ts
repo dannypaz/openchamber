@@ -1541,6 +1541,7 @@ export const dict: Record<I18nKey, string> = {
   'aboutDialog.versionLabel': '버전 {version}',
   'aboutDialog.openChamberVersionLabel': 'OpenChamber 버전 {version}',
   'aboutDialog.openCodeVersionLabel': 'OpenCode 버전 {version}',
+  'aboutDialog.actions.updateAvailable': '{version}(으)로 업데이트',
   'aboutDialog.actions.copyDiagnostics': '진단 정보 복사',
   'aboutDialog.actions.preparingDiagnostics': '진단 정보 준비 중…',
   'aboutDialog.actions.diagnosticsCopied': '진단 정보 복사됨',

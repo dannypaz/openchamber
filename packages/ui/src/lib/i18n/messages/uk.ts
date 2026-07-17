@@ -1517,6 +1517,7 @@ export const dict: Record<I18nKey, string> = {
   "aboutDialog.versionLabel": "Версія {version}",
   "aboutDialog.openChamberVersionLabel": "Версія OpenChamber {version}",
   "aboutDialog.openCodeVersionLabel": "Версія OpenCode {version}",
+  "aboutDialog.actions.updateAvailable": "Оновити до {version}",
   "aboutDialog.actions.copyDiagnostics": "Скопіювати діагностику",
   "aboutDialog.actions.preparingDiagnostics": "Підготовка діагностики...",
   "aboutDialog.actions.diagnosticsCopied": "Діагностику скопійовано",
