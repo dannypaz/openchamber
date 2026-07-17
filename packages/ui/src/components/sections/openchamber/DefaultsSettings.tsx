@@ -479,20 +479,6 @@ export const DefaultsSettings: React.FC = () => {
           {t('settings.openchamber.defaults.modelRouter.description')}
         </div>
 
-        <div data-settings-item="sessions.model-router-cheap" className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:gap-8">
-          <div className="flex min-w-0 flex-col sm:w-56 shrink-0">
-            <span className="typography-ui-label text-foreground">{t('settings.openchamber.defaults.modelRouter.cheapModel')}</span>
-          </div>
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-fit sm:flex-initial">
-            <ModelSelector
-              providerId={parsedModelRouterCheap.providerId}
-              modelId={parsedModelRouterCheap.modelId}
-              onChange={handleModelRouterCheapOverrideChange}
-              placeholder={t('settings.openchamber.defaults.modelRouter.cheapModelHint')}
-            />
-          </div>
-        </div>
-
         <div data-settings-item="sessions.model-router-frontier" className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:gap-8">
           <div className="flex min-w-0 flex-col sm:w-56 shrink-0">
             <span className="typography-ui-label text-foreground">{t('settings.openchamber.defaults.modelRouter.frontierModel')}</span>
@@ -503,6 +489,20 @@ export const DefaultsSettings: React.FC = () => {
               modelId={parsedModelRouterFrontier.modelId}
               onChange={handleModelRouterFrontierOverrideChange}
               placeholder={t('settings.openchamber.defaults.modelRouter.frontierModelHint')}
+            />
+          </div>
+        </div>
+
+        <div data-settings-item="sessions.model-router-cheap" className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:gap-8">
+          <div className="flex min-w-0 flex-col sm:w-56 shrink-0">
+            <span className="typography-ui-label text-foreground">{t('settings.openchamber.defaults.modelRouter.cheapModel')}</span>
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-fit sm:flex-initial">
+            <ModelSelector
+              providerId={parsedModelRouterCheap.providerId}
+              modelId={parsedModelRouterCheap.modelId}
+              onChange={handleModelRouterCheapOverrideChange}
+              placeholder={t('settings.openchamber.defaults.modelRouter.cheapModelHint')}
             />
           </div>
         </div>
