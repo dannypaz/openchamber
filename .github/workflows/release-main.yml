@@ -198,7 +198,7 @@ jobs:
             -c.publish.channel=main \
             -c.extraMetadata.version=${{ needs.compute-version.outputs.version }}
           bun run verify:opencode-cli:packaged
-          bun run verify:linux-appimage
+          bun run verify:linux-appimage "dist/OpenChamber-${{ needs.compute-version.outputs.version }}-linux-arm64.AppImage"
 
       - name: Validate Linux update manifest
         working-directory: packages/electron
