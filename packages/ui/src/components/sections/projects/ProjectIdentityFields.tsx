@@ -83,6 +83,7 @@ export const ProjectIdentityFields: React.FC<ProjectIdentityFieldsProps> = ({ fo
           modelId={parsedDefaultModel.modelId}
           onChange={handleDefaultModelChange}
           className={PROJECT_SETTINGS_CONTROL_WIDTH}
+          showAutoOption
         />
       </ProjectSettingsSubsection>
 
