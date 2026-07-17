@@ -28,6 +28,7 @@ import { useGlobalSessionsStore } from '@/stores/useGlobalSessionsStore';
 import { useFeatureFlagsStore } from '@/stores/useFeatureFlagsStore';
 
 import { useDesktopWindowControlsLayout } from '@/hooks/useDesktopWindowControlsLayout';
+import { useDesktopInstanceLabel } from '@/hooks/useDesktopInstanceLabel';
 import { ContextUsageDisplay } from '@/components/ui/ContextUsageDisplay';
 import { WindowsWindowControls } from '@/components/desktop/WindowsWindowControls';
 import { UpdateDialog } from '@/components/ui/UpdateDialog';
@@ -62,8 +63,7 @@ import { OpenInAppButton } from '@/components/desktop/OpenInAppButton';
 import { useTerminalStore } from '@/stores/useTerminalStore';
 import { ProjectActionsButton } from '@/components/layout/ProjectActionsButton';
 import { SessionSwitcherDropdown } from '@/components/session/SessionSwitcherDropdown';
-import { canUseElectronDesktopIPC, invokeDesktop, isDesktopLocalOriginActive, isDesktopShell, isVSCodeRuntime, startDesktopWindowDrag, type UpdateInfo } from '@/lib/desktop';
-import { desktopHostsGet, getDesktopHostApiUrl, locationMatchesHost, redactSensitiveUrl } from '@/lib/desktopHosts';
+import { canUseElectronDesktopIPC, invokeDesktop, isVSCodeRuntime, startDesktopWindowDrag, type UpdateInfo } from '@/lib/desktop';
 import { Icon } from "@/components/icon/Icon";
 import { useI18n } from '@/lib/i18n';
 import { runtimeFetch } from '@/lib/runtime-fetch';
@@ -482,28 +482,23 @@ const DesktopServicesMenu = React.memo(function DesktopServicesMenu({
   );
 });
 
-type LocalInstanceSwitcherProps = {
+type LocalInstanceTagProps = {
   isDesktopApp: boolean;
   currentInstanceLabel: string;
   compactCurrentInstanceLabel: string;
-  isOpen: boolean;
-  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  refreshCurrentInstanceLabel: () => Promise<void>;
 };
 
-// Compact instance-switcher chip that sits next to the workspace/branch line,
-// so the subtitle row reads [instance] [workspace] [branch]. Local/remote
+// Compact, non-interactive instance tag that sits next to the workspace/branch
+// line, so the subtitle row reads [instance] [workspace] [branch]. Local/remote
 // instances are an Electron-only concept, so this renders nothing outside the
-// desktop app — the full instance/usage/mcp menu on the right stays the
-// primary control.
-const LocalInstanceSwitcher = React.memo(function LocalInstanceSwitcher({
+// desktop app. Switching instances happens from the chat composer's instance
+// switcher (see ModelControls.tsx) and the full instance/usage/mcp menu on the
+// right of the header.
+const LocalInstanceTag = React.memo(function LocalInstanceTag({
   isDesktopApp,
   currentInstanceLabel,
   compactCurrentInstanceLabel,
-  isOpen,
-  setIsOpen,
-  refreshCurrentInstanceLabel,
-}: LocalInstanceSwitcherProps) {
+}: LocalInstanceTagProps) {
   const { t } = useI18n();
 
   if (!isDesktopApp) {
@@ -511,45 +506,17 @@ const LocalInstanceSwitcher = React.memo(function LocalInstanceSwitcher({
   }
 
   return (
-    <DropdownMenu
-      open={isOpen}
-      onOpenChange={(open) => {
-        setIsOpen(open);
-        if (open) {
-          void refreshCurrentInstanceLabel();
-        }
-      }}
-    >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={t('header.instanceSwitcher.openAria', { current: currentInstanceLabel })}
-              className="app-region-no-drag inline-flex h-4 max-w-[7rem] flex-shrink-0 items-center gap-0.5 rounded px-1 text-muted-foreground/75 transition-colors hover:bg-interactive-hover/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <Icon name="stack" className="h-2.5 w-2.5 flex-shrink-0" />
-              <span className="truncate">{compactCurrentInstanceLabel}</span>
-              <Icon name="arrow-down-s" className="h-2.5 w-2.5 flex-shrink-0 opacity-60" />
-            </button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{t('header.instanceSwitcher.tooltip', { current: currentInstanceLabel })}</p>
-        </TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent
-        align="start"
-        className="w-[min(22rem,calc(100vw-2rem))] max-h-[75vh] overflow-y-auto bg-[var(--surface-elevated)] p-0"
-      >
-        <DesktopHostSwitcherDialog
-          embedded
-          open={isOpen}
-          onOpenChange={() => {}}
-          onHostSwitched={() => setIsOpen(false)}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex h-4 max-w-[7rem] flex-shrink-0 items-center gap-0.5 rounded px-1 text-muted-foreground/75">
+          <Icon name="stack" className="h-2.5 w-2.5 flex-shrink-0" />
+          <span className="truncate">{compactCurrentInstanceLabel}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{t('header.instanceSwitcher.tooltip', { current: currentInstanceLabel })}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 });
 
@@ -567,26 +534,6 @@ const isSameContextUsage = (
     && (a.normalizedOutput ?? 0) === (b.normalizedOutput ?? 0)
     && a.thresholdLimit === b.thresholdLimit
     && (a.lastMessageId ?? '') === (b.lastMessageId ?? '');
-};
-
-const formatCompactHeaderLabel = (value: string): string => {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.length >= 2) {
-    const first = words[0];
-    const second = words[1].slice(0, 3);
-    const shortTwoWord = `${first} ${second}`.trim();
-    if (words.length > 2 || shortTwoWord.length < trimmed.length) {
-      return `${shortTwoWord}...`;
-    }
-    return shortTwoWord;
-  }
-
-  return trimmed.length > 12 ? `${trimmed.slice(0, 9).trimEnd()}...` : trimmed;
 };
 
 const formatTime = (timestamp: number | null, timeFormatPreference: 'auto' | '12h' | '24h') => {
@@ -710,12 +657,13 @@ export const Header: React.FC<HeaderProps> = ({
 
   const headerRef = React.useRef<HTMLElement | null>(null);
 
-  const [isDesktopApp, setIsDesktopApp] = React.useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    return isDesktopShell();
-  });
+  const {
+    isDesktopApp,
+    currentInstanceLabel,
+    compactCurrentInstanceLabel,
+    currentInstanceIsLocal,
+    refreshCurrentInstanceLabel,
+  } = useDesktopInstanceLabel();
   const hasElectronDesktopIPC = React.useMemo(() => canUseElectronDesktopIPC(), []);
   const isTabletStandalonePwa = useTabletStandalonePwaRuntime();
   const [isDesktopWindowFullscreen, setIsDesktopWindowFullscreen] = React.useState(false);
@@ -755,13 +703,6 @@ export const Header: React.FC<HeaderProps> = ({
     return first === 10 ? second : first;
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    setIsDesktopApp(isDesktopShell());
-  }, []);
-
   const currentModel = getCurrentModel();
   const limit = currentModel && typeof currentModel.limit === 'object' && currentModel.limit !== null
     ? (currentModel.limit as Record<string, unknown>)
@@ -791,15 +732,11 @@ export const Header: React.FC<HeaderProps> = ({
   const isSessionSwitcherOpen = useUIStore((state) => state.isSessionSwitcherOpen);
   const [isMobileRateLimitsOpen, setIsMobileRateLimitsOpen] = React.useState(false);
   const [isDesktopServicesOpen, setIsDesktopServicesOpen] = React.useState(false);
-  const [isLocalInstanceSwitcherOpen, setIsLocalInstanceSwitcherOpen] = React.useState(false);
   const [isUsageRefreshSpinning, setIsUsageRefreshSpinning] = React.useState(false);
-  const [currentInstanceLabel, setCurrentInstanceLabel] = React.useState('Local');
-  const [currentInstanceIsLocal, setCurrentInstanceIsLocal] = React.useState(true);
   const [remoteUpdateDialogOpen, setRemoteUpdateDialogOpen] = React.useState(false);
   const [remoteUpdateInfo, setRemoteUpdateInfo] = React.useState<UpdateInfo | null>(null);
   const [remoteUpdateChecking, setRemoteUpdateChecking] = React.useState(false);
   const [remoteUpdateError, setRemoteUpdateError] = React.useState<string | null>(null);
-  const compactCurrentInstanceLabel = React.useMemo(() => formatCompactHeaderLabel(currentInstanceLabel), [currentInstanceLabel]);
   const [desktopServicesTab, setDesktopServicesTab] = React.useState<'instance' | 'usage' | 'mcp'>(
     isDesktopApp ? 'instance' : 'usage'
   );
@@ -815,49 +752,6 @@ export const Header: React.FC<HeaderProps> = ({
   const desktopHeaderDisplayPercentage = stableDesktopContextUsage && stableDesktopContextUsage.contextLimit > 0
     ? Math.min(999, (stableDesktopContextUsage.totalTokens / stableDesktopContextUsage.contextLimit) * 100)
     : 0;
-
-  const refreshCurrentInstanceLabel = React.useCallback(async () => {
-    if (typeof window === 'undefined' || !isDesktopApp) {
-      return;
-    }
-
-    try {
-      if (isDesktopLocalOriginActive()) {
-        setCurrentInstanceLabel('Local');
-        setCurrentInstanceIsLocal(true);
-        return;
-      }
-      setCurrentInstanceIsLocal(false);
-
-      const cfg = await desktopHostsGet();
-      const localOrigin = window.__OPENCHAMBER_LOCAL_ORIGIN__ || window.location.origin;
-      const runtimeApiBaseUrl = getRuntimeApiBaseUrl();
-
-      if (runtimeApiBaseUrl && locationMatchesHost(runtimeApiBaseUrl, localOrigin)) {
-        setCurrentInstanceLabel('Local');
-        setCurrentInstanceIsLocal(true);
-        return;
-      }
-
-      const match = cfg.hosts.find((host) => {
-        return runtimeApiBaseUrl ? locationMatchesHost(runtimeApiBaseUrl, getDesktopHostApiUrl(host)) : false;
-      });
-
-      if (match?.label?.trim()) {
-        setCurrentInstanceLabel(redactSensitiveUrl(match.label.trim()));
-        return;
-      }
-
-      setCurrentInstanceLabel('Instance');
-    } catch {
-      setCurrentInstanceLabel('Local');
-      setCurrentInstanceIsLocal(true);
-    }
-  }, [isDesktopApp]);
-
-  useEffect(() => {
-    void refreshCurrentInstanceLabel();
-  }, [refreshCurrentInstanceLabel]);
 
   const checkRemoteInstanceUpdate = React.useCallback(async () => {
     if (currentInstanceIsLocal) {
@@ -2053,13 +1947,10 @@ export const Header: React.FC<HeaderProps> = ({
           </SessionSwitcherDropdown>
           {(isDesktopApp || activeProjectLabel || currentBranchLabel || (!isNewSessionDraftOpen && worktreeBadgeKind)) ? (
             <span className="flex min-w-0 max-w-full items-center gap-1.5 truncate typography-micro text-[10.5px] font-normal leading-tight text-muted-foreground/75 px-1">
-              <LocalInstanceSwitcher
+              <LocalInstanceTag
                 isDesktopApp={isDesktopApp}
                 currentInstanceLabel={currentInstanceLabel}
                 compactCurrentInstanceLabel={compactCurrentInstanceLabel}
-                isOpen={isLocalInstanceSwitcherOpen}
-                setIsOpen={setIsLocalInstanceSwitcherOpen}
-                refreshCurrentInstanceLabel={refreshCurrentInstanceLabel}
               />
               {activeProjectLabel ? <span className="truncate">{activeProjectLabel}</span> : null}
               {currentBranchLabel ? (

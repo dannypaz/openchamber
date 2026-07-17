@@ -35,6 +35,8 @@ import { getSessionMaterializationStatus } from '@/sync/materialization';
 import { useUIStore } from '@/stores/useUIStore';
 import { useModelLists } from '@/hooks/useModelLists';
 import { useIsTextTruncated } from '@/hooks/useIsTextTruncated';
+import { useDesktopInstanceLabel } from '@/hooks/useDesktopInstanceLabel';
+import { DesktopHostSwitcherDialog } from '@/components/desktop/DesktopHostSwitcher';
 import { formatEffortLabel, getCycledPrimaryAgentName, isPrimaryMode, type MobileControlsPanel } from './mobileControlsUtils';
 import { getCurrentIntlLocale, useI18n } from '@/lib/i18n';
 import { useOpenCodeReadiness } from '@/hooks/useOpenCodeReadiness';
@@ -396,6 +398,13 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
     const uiIsMobile = useUIStore((state) => state.isMobile);
     const isMobile = deviceIsMobile || uiIsMobile;
     const isDesktop = React.useMemo(() => isDesktopShell(), []);
+    const [isInstanceSwitcherOpen, setIsInstanceSwitcherOpen] = React.useState(false);
+    const {
+        isDesktopApp: isDesktopInstanceSwitcherAvailable,
+        currentInstanceLabel,
+        compactCurrentInstanceLabel,
+        refreshCurrentInstanceLabel,
+    } = useDesktopInstanceLabel();
     const isVSCodeRuntime = useIsVSCodeRuntime();
     // Only use mobile panels on actual mobile devices, VSCode uses desktop dropdowns
     const isCompact = isMobile;
@@ -2602,6 +2611,65 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
         );
     };
 
+    const renderInstanceSwitcher = () => {
+        if (!isDesktopInstanceSwitcherAvailable || isCompact) {
+            return null;
+        }
+
+        return (
+            <Tooltip delayDuration={600}>
+                <DropdownMenu
+                    open={isInstanceSwitcherOpen}
+                    onOpenChange={(open) => {
+                        setIsInstanceSwitcherOpen(open);
+                        if (open) {
+                            void refreshCurrentInstanceLabel();
+                        }
+                    }}
+                >
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <div
+                                className={cn(
+                                    'model-controls__instance-trigger flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-transparent hover:opacity-70 min-w-0',
+                                    buttonHeight,
+                                )}
+                                aria-label={t('chat.modelControls.instanceSwitcher.openAria', { current: currentInstanceLabel })}
+                            >
+                                <Icon name="stack" className={cn(controlIconSize, 'flex-shrink-0 text-muted-foreground')} />
+                                <span
+                                    className={cn(
+                                        'model-controls__instance-label',
+                                        controlTextSize,
+                                        'font-medium min-w-0 truncate text-muted-foreground',
+                                        isDesktop ? 'max-w-[120px]' : undefined,
+                                    )}
+                                >
+                                    {compactCurrentInstanceLabel}
+                                </span>
+                            </div>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <DropdownMenuContent
+                        align="end"
+                        alignOffset={-40}
+                        className="w-[min(22rem,calc(100vw-2rem))] max-h-[75vh] overflow-y-auto bg-[var(--surface-elevated)] p-0"
+                    >
+                        <DesktopHostSwitcherDialog
+                            embedded
+                            open={isInstanceSwitcherOpen}
+                            onOpenChange={() => {}}
+                            onHostSwitched={() => setIsInstanceSwitcherOpen(false)}
+                        />
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <TooltipContent side="top">
+                    <p className="typography-meta">{t('chat.modelControls.instanceSwitcher.tooltip', { current: currentInstanceLabel })}</p>
+                </TooltipContent>
+            </Tooltip>
+        );
+    };
+
     const renderVariantSelector = () => {
         if (!isReady || !hasVariants) {
             return null;
@@ -2899,6 +2967,7 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
                         isMobile && 'overflow-hidden'
                     )}
                 >
+                    {renderInstanceSwitcher()}
                     {renderVariantSelector()}
                     {renderModelSelector()}
                     {renderAgentSelector()}
