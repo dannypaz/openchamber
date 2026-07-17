@@ -2837,6 +2837,15 @@ const setupAutoUpdater = () => {
   autoUpdater.disableWebInstaller = false;
   autoUpdater.logger = log;
 
+  // The 'main' channel uses ad-hoc signing (CSC_IDENTITY_AUTO_DISCOVERY=false).
+  // MacUpdater/Squirrel.Mac will reject updates with signature mismatches, but
+  // for internal unsigned builds we want updates to work anyway. We can't disable
+  // Squirrel's native signature check directly, but we handle quitAndInstall failures
+  // gracefully in the desktop_restart handler.
+  if (process.platform === 'darwin' && updateChannel === 'main') {
+    log.info('[electron] main channel detected - quitAndInstall may fail on unsigned builds');
+  }
+
   const testBuild = typeof __OPENCHAMBER_UPDATER_E2E_BUILD__ !== 'undefined'
     && __OPENCHAMBER_UPDATER_E2E_BUILD__ === true;
   const feed = resolveUpdaterFeed({ testBuild, updateChannel });
@@ -2872,6 +2881,15 @@ const setupAutoUpdater = () => {
   autoUpdater.on('error', (err) => {
     setTaskbarProgress(-1);
     log.error('[electron] autoUpdater error', err);
+    // Clear pending update on signature validation or fatal errors to prevent
+    // "restart to update" from attempting to install a broken download.
+    const errMsg = err && typeof err.message === 'string' ? err.message.toLowerCase() : '';
+    if (errMsg.includes('signature') || errMsg.includes('validation') || errMsg.includes('disabled')) {
+      if (state.pendingUpdate) {
+        log.warn('[electron] clearing pendingUpdate due to updater error');
+        state.pendingUpdate = null;
+      }
+    }
   });
 };
 
@@ -4010,7 +4028,7 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
         try {
           if (applyUpdate) {
             killSidecar();
-            autoUpdater.quitAndInstall();
+            autoUpdater.quitAndInstall(false, true);
           } else {
             prepareForQuit();
             app.relaunch();
@@ -4018,6 +4036,18 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
           }
         } catch (err) {
           log.error('[electron] desktop_restart failed', err);
+          // If quitAndInstall fails (e.g., signature validation or disabled command),
+          // fall back to a regular restart so the user isn't stuck.
+          if (applyUpdate) {
+            log.warn('[electron] quitAndInstall failed, falling back to regular restart');
+            try {
+              prepareForQuit();
+              app.relaunch();
+              app.exit(0);
+            } catch (restartErr) {
+              log.error('[electron] fallback restart also failed', restartErr);
+            }
+          }
         }
       });
       return null;
