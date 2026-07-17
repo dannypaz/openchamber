@@ -47,6 +47,7 @@ import {
 } from '@/lib/worktrees/worktreeSourceBranchPreference';
 import { useRuntimeAPIs } from '@/hooks/useRuntimeAPIs';
 import { useGitBranches, useGitStore, useGitLoadingBranches } from '@/stores/useGitStore';
+import { runtimeFetch } from '@/lib/runtime-fetch';
 import { GitHubIntegrationDialog } from './GitHubIntegrationDialog';
 import { SortableTabsStrip } from '@/components/ui/sortable-tabs-strip';
 import { MobileOverlayPanel } from '@/components/ui/MobileOverlayPanel';
@@ -62,6 +63,24 @@ import type { ProjectRef } from '@/lib/worktrees/worktreeManager';
 import { useI18n } from '@/lib/i18n';
 
 type Mode = 'new-branch' | 'existing-branch';
+type Backend = 'local' | 'cloud';
+
+// A cloud VM only ever sees what's reachable from the git remote (see
+// cloud-provisioning.js — the provisioner clones by repoUrl/branch, no local
+// staging). `remoteBranches` entries here are `remoteName/branchName` (the
+// `remotes/` prefix already stripped, see the component's own remoteBranches
+// memo below), and a selected branch value is either a bare local branch
+// name or `remotes/${remoteName}/${branchName}` when chosen from remote
+// search results (see branchSearch.ts's rankBranchesForQuery).
+const isBranchPushedToRemote = (selectedBranch: string, remoteBranches: string[]): boolean => {
+  if (!selectedBranch) return false;
+  if (selectedBranch.startsWith('remotes/')) return true;
+  return remoteBranches.some((remoteBranch) => {
+    const slashIndex = remoteBranch.indexOf('/');
+    if (slashIndex <= 0 || slashIndex >= remoteBranch.length - 1) return false;
+    return remoteBranch.slice(slashIndex + 1) === selectedBranch;
+  });
+};
 
 interface ValidationState {
   isValidating: boolean;
@@ -184,6 +203,12 @@ interface NewWorktreeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onWorktreeCreated?: (worktreePath: string, options?: { sessionId?: string }) => void;
+  // Cloud sessions never create a local worktree and are already made the
+  // current session (via session-actions.ts's targetId branch, which uses
+  // setCurrentCloudSession — not the default setCurrentSession the
+  // onWorktreeCreated callers below call). A separate callback avoids
+  // callers re-driving that wrong, default-backend setter.
+  onCloudSessionCreated?: (sessionId: string) => void;
 }
 
 const buildIssueContextText = (args: {
@@ -207,6 +232,7 @@ export function NewWorktreeDialog({
   open,
   onOpenChange,
   onWorktreeCreated,
+  onCloudSessionCreated,
 }: NewWorktreeDialogProps) {
   const { t } = useI18n();
   const { github, git } = useRuntimeAPIs();
@@ -225,7 +251,38 @@ export function NewWorktreeDialog({
 
   // Mode state
   const [mode, setMode] = React.useState<Mode>('new-branch');
-  
+
+  // Backend state (Local vs Cloud). Local dialog state, not persisted in
+  // newSessionDraft — mirrors how `mode` itself is handled (see the plan's
+  // "Verified against the current file" notes: this dialog never reads/
+  // writes newSessionDraft.mode either).
+  const [backend, setBackend] = React.useState<Backend>('local');
+  const [cloudProvisioningEnabled, setCloudProvisioningEnabled] = React.useState(false);
+
+  // Fetch the "Enable Cloud VMs" setting when the dialog opens. No reactive
+  // global store for this exists yet — CloudSettings.tsx fetches the same
+  // way, on its own mount, for the same reason (cheap, low-frequency read).
+  React.useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await runtimeFetch('/api/config/settings', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok || cancelled) return;
+        const data = await response.json().catch(() => null) as { cloudProvisioning?: { enabled?: boolean } } | null;
+        if (!cancelled) {
+          setCloudProvisioningEnabled(Boolean(data?.cloudProvisioning?.enabled));
+        }
+      } catch {
+        // ignore — Cloud option simply stays hidden
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
   // Separate state for each mode (persisted when switching tabs)
   const [newBranchState, setNewBranchState] = React.useState<NewBranchState>({
     branchName: '',
@@ -262,7 +319,25 @@ export function NewWorktreeDialog({
       .map((branchName: string) => branchName.replace(/^remotes\//, ''))
       .sort();
   }, [branches]);
-  
+
+  // Cloud only ever supports mode === 'existing-branch' with a pushed
+  // branch — see isBranchPushedToRemote's comment for why.
+  const selectedBranchIsPushed = React.useMemo(
+    () => isBranchPushedToRemote(existingBranchState.selectedBranch, remoteBranches),
+    [existingBranchState.selectedBranch, remoteBranches],
+  );
+  const cloudBackendAvailable = cloudProvisioningEnabled && mode === 'existing-branch' && selectedBranchIsPushed;
+
+  // Fall back to Local whenever the current selection stops qualifying for
+  // Cloud (mode switched away from existing-branch, branch changed to an
+  // unpushed one, or the setting got disabled) — never leave `backend`
+  // pointed at an option that's no longer actually offered.
+  React.useEffect(() => {
+    if (backend === 'cloud' && !cloudBackendAvailable) {
+      setBackend('local');
+    }
+  }, [backend, cloudBackendAvailable]);
+
   // Get existing worktrees for the current project to avoid conflicts
   const availableWorktreesByProject = useSessionUIStore((state) => state.availableWorktreesByProject);
   const existingWorktreeNames = React.useMemo(() => {
@@ -803,7 +878,60 @@ export function NewWorktreeDialog({
       toast.error(t('session.newWorktree.error.branchNameRequired'));
       return;
     }
-    
+
+    if (backend === 'cloud') {
+      // Cloud path: no local worktree, no validation abort/touched-state
+      // plumbing shared with the local flow below — the provisioner clones
+      // by repoUrl/branch itself (see cloud-provisioning.js), so this only
+      // needs to resolve the remote URL and hand off.
+      setIsCreating(true);
+      try {
+        // normalizedBranch may carry the `remotes/${remoteName}/` wire
+        // format used internally by createWorktree's existingBranch field
+        // (see resolvePrWorktreeConfig above) when selected from remote
+        // search results — strip it down to a plain branch name the
+        // provisioner can actually `git checkout`.
+        const cloudBranch = normalizedBranch.startsWith('remotes/')
+          ? normalizedBranch.slice('remotes/'.length).split('/').slice(1).join('/')
+          : normalizedBranch;
+
+        const remoteUrl = (await git.getRemoteUrl?.(projectDirectory).catch(() => null))
+          ?? (await git.getRemotes(projectDirectory).catch(() => [])).find((r) => r.name === 'origin')?.fetchUrl
+          ?? null;
+        if (!remoteUrl) {
+          throw new Error(t('session.newWorktree.error.noRemoteUrl'));
+        }
+
+        const response = await runtimeFetch('/api/openchamber/cloud-sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ metadata: { repoUrl: remoteUrl, branch: cloudBranch } }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || t('session.newWorktree.error.cloudProvisioningFailed'));
+        }
+
+        const sessionTitle = t('session.newWorktree.newSessionTitle');
+        const session = await sessionActions.createSession(sessionTitle, payload.directory, null, undefined, payload.id);
+        if (!session?.id) {
+          throw new Error('Failed to create session');
+        }
+
+        toast.success(t('session.newWorktree.toast.cloudSessionCreated'), {
+          description: cloudBranch,
+        });
+        onOpenChange(false);
+        onCloudSessionCreated?.(session.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : t('session.newWorktree.error.cloudProvisioningFailed');
+        toast.error(t('session.newWorktree.error.cloudProvisioningFailed'), { description: message });
+      } finally {
+        setIsCreating(false);
+      }
+      return;
+    }
+
     if (!normalizedWorktree) {
       toast.error(t('session.newWorktree.error.worktreeDirectoryRequired'));
       return;
@@ -998,10 +1126,15 @@ export function NewWorktreeDialog({
   // GitHub connection check
   const isGitHubConnected = githubAuthChecked && githubAuthStatus?.connected === true;
 
-  // Check if form is valid for submission
-  const isFormValid = mode === 'existing-branch'
-    ? !!existingBranchState.selectedBranch && !!existingBranchState.worktreeName && !validation.branchError && !validation.worktreeError
-    : !!normalizeBranchName(newBranchState.branchName) && !!newBranchState.worktreeName && !validation.branchError && !validation.worktreeError;
+  // Check if form is valid for submission. Cloud sessions never create a
+  // local worktree (see handleCreate's cloud branch), so worktreeName is
+  // irrelevant to them — only the pushed-branch selection matters, and
+  // cloudBackendAvailable already guarantees that.
+  const isFormValid = backend === 'cloud'
+    ? cloudBackendAvailable
+    : mode === 'existing-branch'
+      ? !!existingBranchState.selectedBranch && !!existingBranchState.worktreeName && !validation.branchError && !validation.worktreeError
+      : !!normalizeBranchName(newBranchState.branchName) && !!newBranchState.worktreeName && !validation.branchError && !validation.worktreeError;
 
   const canCreate = isFormValid && !isCreating;
 
@@ -1049,11 +1182,45 @@ export function NewWorktreeDialog({
           className={cn('gap-1.5', isMobile && 'flex-1')}
         >
           {isCreating && <Icon name="loader-4" className="h-3.5 w-3.5 animate-spin" />}
-          {isCreating ? t('session.newWorktree.actions.creating') : t('session.newWorktree.actions.createWorktree')}
+          {isCreating
+            ? (backend === 'cloud' ? t('session.newWorktree.actions.provisioning') : t('session.newWorktree.actions.creating'))
+            : (backend === 'cloud' ? t('session.newWorktree.actions.createCloudSession') : t('session.newWorktree.actions.createWorktree'))}
         </Button>
       </div>
     </div>
   );
+
+  // Backend (Local/Cloud) picker, shared between the mobile and desktop
+  // trees below. Only shown once there's something meaningful to say:
+  // hidden entirely when the setting is off or no existing branch is
+  // selected yet; a picker when the selected branch qualifies; an inline
+  // notice (no picker) when it's selected but not pushed, since a
+  // single-selectable-option tab strip would be confusing UI.
+  const backendPickerContent = cloudProvisioningEnabled && mode === 'existing-branch' && existingBranchState.selectedBranch ? (
+    cloudBackendAvailable ? (
+      <div className="space-y-1.5">
+        <label className="typography-ui-label text-foreground block font-semibold">
+          {t('session.newWorktree.backend.label')}
+        </label>
+        <SortableTabsStrip
+          items={[
+            { id: 'local', label: t('session.newWorktree.backend.local'), icon: <Icon name="computer" className="h-3.5 w-3.5" /> },
+            { id: 'cloud', label: t('session.newWorktree.backend.cloud'), icon: <Icon name="cloud" className="h-3.5 w-3.5" /> },
+          ]}
+          activeId={backend}
+          onSelect={(id) => setBackend(id as Backend)}
+          variant="active-pill"
+          layoutMode="fit"
+          className="w-full"
+        />
+      </div>
+    ) : (
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        <Icon name="cloud-off" className="h-3.5 w-3.5 shrink-0" />
+        <span className="typography-micro">{t('session.newWorktree.backend.cloudUnavailableTooltip')}</span>
+      </div>
+    )
+  ) : null;
 
   return (
     <>
@@ -1296,7 +1463,10 @@ export function NewWorktreeDialog({
               </div>
             )}
 
-            {/* Worktree Directory */}
+            {backendPickerContent}
+
+            {/* Worktree Directory (not applicable to cloud sessions — no local worktree is created) */}
+            {backend !== 'cloud' && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="typography-ui-label text-foreground font-semibold">
@@ -1350,6 +1520,7 @@ export function NewWorktreeDialog({
                 )}
               />
             </div>
+            )}
 
             {/* Source Branch - Only for New Branch mode, hide when PR is selected */}
             {mode === 'new-branch' && !newBranchState.linkedPr && (
@@ -1762,7 +1933,10 @@ export function NewWorktreeDialog({
                 </div>
               )}
 
-              {/* Worktree Directory */}
+              {backendPickerContent}
+
+              {/* Worktree Directory (not applicable to cloud sessions — no local worktree is created) */}
+              {backend !== 'cloud' && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="typography-ui-label text-foreground font-semibold">
@@ -1816,6 +1990,7 @@ export function NewWorktreeDialog({
                   )}
                 />
               </div>
+              )}
 
               {/* Source Branch - Only for New Branch mode, hide when PR is selected */}
               {mode === 'new-branch' && !newBranchState.linkedPr && (

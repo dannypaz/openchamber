@@ -1282,6 +1282,12 @@ export const MobileSessionsSheet: React.FC<MobileSessionsSheetProps> = ({ open, 
               });
             onOpenChange(false);
           }}
+          onCloudSessionCreated={() => {
+            // Already the current session (see session-actions.ts's
+            // targetId branch / setCurrentCloudSession) — do not re-drive
+            // setCurrentSession, which routes through the default backend.
+            onOpenChange(false);
+          }}
         />
         <MobileProjectEditSurface
           open={editingProjectId !== null}

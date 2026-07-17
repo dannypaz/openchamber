@@ -1786,6 +1786,16 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
           }
           openNewSessionDraft({ directoryOverride: worktreePath, preserveDirectoryOverride: true });
         }}
+        onCloudSessionCreated={() => {
+          // The session is already the current one — session-actions.ts's
+          // targetId branch calls setCurrentCloudSession itself. Calling the
+          // default setCurrentSession here (like onWorktreeCreated does)
+          // would incorrectly re-route it through the local backend.
+          setActiveMainTab('chat');
+          if (mobileVariant) {
+            setSessionSwitcherOpen(false);
+          }
+        }}
       />
 
       <ScheduledTasksDialog />
