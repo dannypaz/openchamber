@@ -685,6 +685,7 @@ export function NewWorktreeDialog({
           branches: branches.all,
           savedSourceBranch,
           rootBranch,
+          defaultBranch: branches.defaultBranch,
         });
 
         if (shouldClearSavedSourceBranch) {
@@ -708,7 +709,7 @@ export function NewWorktreeDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, branches?.all, projectDirectory, newBranchState.sourceBranch]);
+  }, [open, branches?.all, branches?.defaultBranch, projectDirectory, newBranchState.sourceBranch]);
 
   // Reset state on each open. Resetting on close would empty the form during
   // the close animation, causing visible flicker.

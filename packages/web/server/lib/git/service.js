@@ -2067,32 +2067,6 @@ export async function getStatus(directory, options = {}) {
       };
     }
 
-    const selectBaseRefForUnpublished = async () => {
-      const candidates = [];
-
-      const originHead = await git
-        .raw(['symbolic-ref', '-q', 'refs/remotes/origin/HEAD'])
-        .then((value) => String(value || '').trim())
-        .catch(() => '');
-
-      if (originHead) {
-        // "refs/remotes/origin/main" -> "origin/main"
-        candidates.push(originHead.replace(/^refs\/remotes\//, ''));
-      }
-
-      candidates.push('origin/main', 'origin/master', 'main', 'master');
-
-      for (const ref of candidates) {
-        const exists = await git
-          .raw(['rev-parse', '--verify', ref])
-          .then((value) => String(value || '').trim())
-          .catch(() => '');
-        if (exists) return ref;
-      }
-
-      return null;
-    };
-
     let tracking = status.tracking || null;
     let ahead = status.ahead;
     let behind = status.behind;
@@ -2102,7 +2076,7 @@ export async function getStatus(directory, options = {}) {
     // We still want to show the number of unpublished commits to the user.
     // Light mode skips this — the basic ahead/behind from git status is sufficient for polling.
     if (!lightMode && !tracking && status.current) {
-      const baseRef = await selectBaseRefForUnpublished();
+      const baseRef = await resolveDefaultBranchRef(git);
       if (baseRef) {
         const countRaw = await git
           .raw(['rev-list', '--count', `${baseRef}..HEAD`])
@@ -3185,6 +3159,35 @@ export async function commit(directory, message, options = {}) {
   });
 }
 
+// Resolves the repo's configured default branch (e.g. "origin/main" or
+// "origin/staging"), not whichever branch happens to be checked out. Prefers
+// the remote's recorded HEAD, falling back to common default-branch names.
+async function resolveDefaultBranchRef(git) {
+  const candidates = [];
+
+  const originHead = await git
+    .raw(['symbolic-ref', '-q', 'refs/remotes/origin/HEAD'])
+    .then((value) => String(value || '').trim())
+    .catch(() => '');
+
+  if (originHead) {
+    // "refs/remotes/origin/main" -> "origin/main"
+    candidates.push(originHead.replace(/^refs\/remotes\//, ''));
+  }
+
+  candidates.push('origin/main', 'origin/master', 'main', 'master');
+
+  for (const ref of candidates) {
+    const exists = await git
+      .raw(['rev-parse', '--verify', ref])
+      .then((value) => String(value || '').trim())
+      .catch(() => '');
+    if (exists) return ref;
+  }
+
+  return null;
+}
+
 export async function getBranches(directory) {
   const { git } = await createRepositoryGitContext(directory);
 
@@ -3200,10 +3203,14 @@ export async function getBranches(directory) {
       ...activeRemoteBranches
     ];
 
+    const defaultBranchRef = await resolveDefaultBranchRef(git).catch(() => null);
+    const defaultBranch = defaultBranchRef ? defaultBranchRef.replace(/^origin\//, '') : null;
+
     return {
       all: filteredAll,
       current: result.current,
-      branches: result.branches
+      branches: result.branches,
+      defaultBranch
     };
   } catch (error) {
     console.error('Failed to get branches:', error);

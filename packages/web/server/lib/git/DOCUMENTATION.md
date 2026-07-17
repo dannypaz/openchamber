@@ -36,7 +36,7 @@ The following functions are exported and used by the web server:
 - `applyHunk(directory, filePath, options)`: Apply a single-hunk patch via `git apply`. `options.action` is `stage` (`git apply --cached`), `unstage` (`git apply --cached --reverse`), or `discard` (`git apply --reverse` in the working tree). The patch is written to a temp file; a `--check` runs first so a stale hunk fails with a clear "refresh and try again" error instead of a partial mutation. The patch target path must match the requested file.
 
 ### Branch Operations
-- `getBranches(directory)`: Get list of local and remote branches (filtered to active remote branches).
+- `getBranches(directory)`: Get list of local and remote branches (filtered to active remote branches), plus `defaultBranch` — the repo's configured default branch (resolved via `origin/HEAD`, falling back to `main`/`master`), not the currently checked-out branch.
 - `createBranch(directory, branchName, options)`: Create and checkout a new branch.
 - `checkoutBranch(directory, branchName)`: Checkout an existing branch.
 - `deleteBranch(directory, branch, options)`: Delete a branch (supports force flag).

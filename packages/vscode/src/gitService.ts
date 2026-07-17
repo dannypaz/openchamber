@@ -605,6 +605,36 @@ export interface GitBranchResult {
   all: string[];
   current: string;
   branches: Record<string, GitBranchDetails>;
+  defaultBranch?: string | null;
+}
+
+/**
+ * Resolves the repo's configured default branch (e.g. "origin/main" or
+ * "origin/staging"), not whichever branch happens to be checked out. Prefers
+ * the remote's recorded HEAD, falling back to common default-branch names.
+ */
+async function resolveDefaultBranchName(directory: string): Promise<string | null> {
+  const originHead = await execGit(['symbolic-ref', '-q', 'refs/remotes/origin/HEAD'], directory)
+    .then((result) => (result.exitCode === 0 ? result.stdout.trim() : ''))
+    .catch(() => '');
+
+  const candidates: string[] = [];
+  if (originHead) {
+    // "refs/remotes/origin/main" -> "origin/main"
+    candidates.push(originHead.replace(/^refs\/remotes\//, ''));
+  }
+  candidates.push('origin/main', 'origin/master', 'main', 'master');
+
+  for (const ref of candidates) {
+    const exists = await execGit(['rev-parse', '--verify', ref], directory)
+      .then((result) => result.exitCode === 0)
+      .catch(() => false);
+    if (exists) {
+      return ref.replace(/^origin\//, '');
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -612,9 +642,10 @@ export interface GitBranchResult {
  */
 export async function getGitBranches(directory: string): Promise<GitBranchResult> {
   const repo = await getRepository(directory);
-  
+  const defaultBranch = await resolveDefaultBranchName(directory).catch(() => null);
+
   if (!repo) {
-    return getGitBranchesRaw(directory);
+    return getGitBranchesRaw(directory, defaultBranch);
   }
 
   const state = repo.state;
@@ -661,17 +692,17 @@ export async function getGitBranches(directory: string): Promise<GitBranchResult
     }
   }
 
-  return { all, current: currentBranch, branches };
+  return { all, current: currentBranch, branches, defaultBranch };
 }
 
 /**
  * Fallback: Get branches using raw git commands
  */
-async function getGitBranchesRaw(directory: string): Promise<GitBranchResult> {
+async function getGitBranchesRaw(directory: string, defaultBranch: string | null = null): Promise<GitBranchResult> {
   const result = await execGit(['branch', '-a', '-v', '--format=%(refname:short)|%(objectname:short)|%(upstream:short)|%(HEAD)'], directory);
-  
+
   if (result.exitCode !== 0) {
-    return { all: [], current: '', branches: {} };
+    return { all: [], current: '', branches: {}, defaultBranch };
   }
 
   const lines = result.stdout.trim().split('\n').filter(Boolean);
@@ -696,7 +727,7 @@ async function getGitBranchesRaw(directory: string): Promise<GitBranchResult> {
     }
   }
 
-  return { all, current, branches };
+  return { all, current, branches, defaultBranch };
 }
 
 /**
