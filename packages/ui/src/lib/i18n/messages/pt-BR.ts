@@ -517,6 +517,7 @@ export const dict: Record<I18nKey, string> = {
   "sessions.sidebar.session.share.successTitle": "Sessão compartida",
   "sessions.sidebar.session.share.successDescription": "Você pode copiar o link pelo menu.",
   "sessions.sidebar.session.share.error": "Não é possível compartilhar a sessão",
+  "sessions.sidebar.session.share.disabled": "O compartilhamento de sessão está desativado. Ative-o em Configurações para compartilhar sessões.",
   "sessions.sidebar.session.share.copyUrlError": "Não foi possível copiar a URL",
   "sessions.sidebar.session.unshare.success": "Sessão dejó de compartilharse",
   "sessions.sidebar.session.unshare.error": "Não é possível parar de compartilhar a sessão",

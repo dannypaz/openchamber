@@ -1,5 +1,4 @@
 import { spawnSync } from 'child_process';
-import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -11,46 +10,13 @@ const __dirname = path.dirname(__filename);
 const PACKAGE_NAME = '@openchamber/web';
 const PACKAGE_PATH_SEGMENTS = PACKAGE_NAME.split('/');
 const NPM_REGISTRY_URL = `https://registry.npmjs.org/${PACKAGE_NAME}`;
-const CHANGELOG_URL = 'https://raw.githubusercontent.com/openchamber/openchamber/main/CHANGELOG.md';
-const GITHUB_RELEASES_URL = 'https://github.com/openchamber/openchamber/releases';
-const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/openchamber/openchamber/releases';
+const CHANGELOG_URL = 'https://raw.githubusercontent.com/dannypaz/openchamber/main/CHANGELOG.md';
+const GITHUB_RELEASES_URL = 'https://github.com/dannypaz/openchamber/releases';
+const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/dannypaz/openchamber/releases';
 let cachedDetectedPm = null;
 
 function getSpawnSyncBaseOptions() {
   return process.platform === 'win32' ? { windowsHide: true } : {};
-}
-const UPDATE_CHECK_URL = process.env.OPENCHAMBER_UPDATE_API_URL || 'https://api.openchamber.dev/v1/update/check';
-
-function getOpenChamberConfigDir() {
-  if (process.platform === 'win32') {
-    const appData = process.env.APPDATA;
-    if (appData) return path.join(appData, 'openchamber');
-  }
-
-  return path.join(os.homedir(), '.config', 'openchamber');
-}
-
-function sanitizeInstallScope(scope) {
-  if (scope === 'desktop-electron' || scope === 'vscode' || scope === 'web' || scope === 'mobile-capacitor') return scope;
-  return 'web';
-}
-
-function getOrCreateInstallId(scope = 'web') {
-  const configDir = getOpenChamberConfigDir();
-  const normalizedScope = sanitizeInstallScope(scope);
-  const idPath = path.join(configDir, `install-id-${normalizedScope}`);
-
-  try {
-    const existing = fs.readFileSync(idPath, 'utf8').trim();
-    if (existing) return existing;
-  } catch {
-    // Generate new id.
-  }
-
-  const installId = crypto.randomUUID();
-  fs.mkdirSync(configDir, { recursive: true });
-  fs.writeFileSync(idPath, `${installId}\n`, { encoding: 'utf8', mode: 0o600 });
-  return installId;
 }
 
 function mapPlatform(value) {
@@ -60,30 +26,14 @@ function mapPlatform(value) {
   return 'web';
 }
 
-function mapArch(value) {
-  if (value === 'arm64' || value === 'aarch64') return 'arm64';
-  if (value === 'x64' || value === 'amd64') return 'x64';
-  return 'unknown';
-}
-
 function normalizeAppType(value) {
   if (value === 'web' || value === 'desktop-electron' || value === 'vscode' || value === 'mobile-capacitor') return value;
   return 'web';
 }
 
-function normalizeDeviceClass(value) {
-  if (value === 'mobile' || value === 'tablet' || value === 'desktop' || value === 'unknown') return value;
-  return 'unknown';
-}
-
 function normalizePlatform(value) {
   if (value === 'macos' || value === 'windows' || value === 'linux' || value === 'web' || value === 'android' || value === 'ios') return value;
   return mapPlatform(process.platform);
-}
-
-function normalizeArch(value) {
-  if (value === 'arm64' || value === 'x64' || value === 'unknown') return value;
-  return mapArch(process.arch);
 }
 
 async function resolveAndroidApkUrl(version, candidateUrl) {
@@ -117,71 +67,6 @@ async function resolveAndroidApkUrl(version, candidateUrl) {
     return (canonicalAsset || apkAssets[0])?.browser_download_url;
   } catch {
     return undefined;
-  }
-}
-
-async function checkForUpdatesFromApi(currentVersion, options = {}) {
-  try {
-    const appType = normalizeAppType(options.appType);
-    const hostPlatform = mapPlatform(process.platform);
-    const hostArch = mapArch(process.arch);
-    const shouldTrustClientPlatform = appType === 'desktop-electron' || appType === 'vscode' || appType === 'mobile-capacitor';
-    const platform = shouldTrustClientPlatform ? normalizePlatform(options.platform) : hostPlatform;
-    const arch = shouldTrustClientPlatform ? normalizeArch(options.arch) : hostArch;
-    const reportUsage = options.reportUsage !== false;
-    const payload = {
-      appType,
-      deviceClass: normalizeDeviceClass(options.deviceClass),
-      platform,
-      arch,
-      channel: 'stable',
-      currentVersion,
-      installId: reportUsage ? (options.installId || getOrCreateInstallId(appType)) : undefined,
-      instanceMode: options.instanceMode || 'unknown',
-      reportUsage,
-    };
-
-    const response = await fetch(UPDATE_CHECK_URL, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (typeof data?.latestVersion !== 'string') return null;
-
-    const versionComparison = compareVersions(data.latestVersion, currentVersion);
-    if (versionComparison < 0) return null;
-
-    const releaseUrl = `${GITHUB_RELEASES_URL}/tag/v${data.latestVersion}`;
-    const downloadUrl = typeof data.downloadUrl === 'string'
-      ? data.downloadUrl
-      : typeof data.download?.url === 'string'
-        ? data.download.url
-        : undefined;
-    const updateAvailable = Boolean(data.updateAvailable) && versionComparison > 0;
-    const mobileDownloadUrl = updateAvailable && appType === 'mobile-capacitor' && platform === 'android'
-      ? await resolveAndroidApkUrl(data.latestVersion, downloadUrl)
-      : undefined;
-    return {
-      available: updateAvailable,
-      version: data.latestVersion,
-      currentVersion,
-      body: typeof data.releaseNotes === 'string' ? data.releaseNotes : undefined,
-      releaseUrl: typeof data.releaseNotesUrl === 'string' ? data.releaseNotesUrl : releaseUrl,
-      downloadUrl: mobileDownloadUrl,
-      nextSuggestedCheckInSec:
-        typeof data.nextSuggestedCheckInSec === 'number' && Number.isFinite(data.nextSuggestedCheckInSec)
-          ? data.nextSuggestedCheckInSec
-          : undefined,
-    };
-  } catch {
-    return null;
   }
 }
 
@@ -772,23 +657,6 @@ export async function checkForUpdates(options = {}) {
   const pm = detectPackageManager();
   const appType = normalizeAppType(options.appType);
   const platform = normalizePlatform(options.platform);
-
-  if (currentVersion !== 'unknown') {
-    const remote = await checkForUpdatesFromApi(currentVersion, options);
-    if (remote) {
-      if (remote.available && appType === 'web') {
-        const npmLatest = await getLatestVersion();
-        if (!npmLatest || compareVersions(npmLatest, remote.version) < 0) {
-          remote.available = false;
-        }
-      }
-      return {
-        ...remote,
-        packageManager: pm,
-        updateCommand: 'openchamber update',
-      };
-    }
-  }
 
   const latestVersion = await getLatestVersion();
 

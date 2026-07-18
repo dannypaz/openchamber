@@ -30,6 +30,11 @@ const trimmedEnv = (name) => {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 };
 
+// Mobile push is off by default in this fork — no device token is stored or
+// registered, and no push is ever sent, until an operator opts in. See
+// DANNY_LIST.md for the follow-up to finish and re-enable this feature.
+const isApnsPushEnabled = () => trimmedEnv('OPENCHAMBER_APNS_PUSH_ENABLED') === 'true';
+
 // Env vars commonly store the .p8 with literal "\n" sequences; restore real newlines.
 const normalizePem = (value) => (typeof value === 'string' ? value.replace(/\\n/g, '\n').trim() : '');
 
@@ -159,6 +164,7 @@ export const createApnsRuntime = (deps) => {
   const normalizePlatform = (platform) => (platform === 'android' ? 'android' : 'ios');
 
   const addOrUpdateApnsToken = async (uiSessionToken, deviceToken, userAgent, platform) => {
+    if (!isApnsPushEnabled()) return;
     if (!uiSessionToken || typeof deviceToken !== 'string' || deviceToken.trim().length === 0) return;
     const token = deviceToken.trim();
     const tokenPlatform = normalizePlatform(platform);
@@ -474,6 +480,7 @@ export const createApnsRuntime = (deps) => {
   // display the alert while the app is foreground (presentationOptions: [] in
   // capacitor.config) — so there is no notification when the app is active, with no race.
   const sendApnsToAllUiSessions = async (payload, _options = {}) => {
+    if (!isApnsPushEnabled()) return;
     const store = await readTokensFromDisk();
     const deviceTokens = [];
     const seen = new Set();

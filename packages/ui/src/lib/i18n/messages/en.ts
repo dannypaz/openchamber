@@ -516,6 +516,7 @@ export const dict = {
   'sessions.sidebar.session.share.successTitle': 'Session shared',
   'sessions.sidebar.session.share.successDescription': 'You can copy the link from the menu.',
   'sessions.sidebar.session.share.error': 'Unable to share session',
+  'sessions.sidebar.session.share.disabled': 'Session sharing is disabled. Enable it in Settings to share sessions.',
   'sessions.sidebar.session.share.copyUrlError': 'Failed to copy URL',
   'sessions.sidebar.session.unshare.success': 'Session unshared',
   'sessions.sidebar.session.unshare.error': 'Unable to unshare session',

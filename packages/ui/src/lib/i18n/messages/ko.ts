@@ -517,6 +517,7 @@ export const dict: Record<I18nKey, string> = {
   'sessions.sidebar.session.share.successTitle': '세션 공유됨',
   'sessions.sidebar.session.share.successDescription': '메뉴에서 링크를 복사할 수 있습니다.',
   'sessions.sidebar.session.share.error': '세션을 공유할 수 없음',
+  'sessions.sidebar.session.share.disabled': '세션 공유가 비활성화되어 있습니다. 세션을 공유하려면 설정에서 활성화하세요.',
   'sessions.sidebar.session.share.copyUrlError': 'URL 복사 실패',
   'sessions.sidebar.session.unshare.success': '세션 공유 해제됨',
   'sessions.sidebar.session.unshare.error': '세션 공유 해제 실패',

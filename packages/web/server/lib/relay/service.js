@@ -45,6 +45,13 @@ const envRelayUrlOverride = () => {
   return raw.trim();
 };
 
+// The private relay (remote device pairing/access over wss://relay.openchamber.dev)
+// is off by default in this fork — it never auto-starts from pairing demand and
+// cannot be enabled through the UI/API until an operator opts in. This is
+// independent of the "cloud" feature, which does not use this relay at all.
+const RELAY_DISABLED_MESSAGE = 'Realtime relay is disabled by server configuration (set OPENCHAMBER_RELAY_ENABLED=true to allow it).';
+const isRelayHardDisabled = () => process.env.OPENCHAMBER_RELAY_ENABLED !== 'true';
+
 /**
  * @param {{
  *   crypto: typeof import('node:crypto'),
@@ -153,6 +160,10 @@ export const createRelayService = ({
 
   const start = async (relayUrl, { claim = 'try' } = {}) => {
     if (hostClient) return;
+    if (isRelayHardDisabled()) {
+      status = { state: 'disabled', lastError: RELAY_DISABLED_MESSAGE, connectedClients: 0 };
+      return;
+    }
     if (hostLock) {
       const claimed = claim === 'force' ? hostLock.forceClaim() : hostLock.tryClaim();
       if (!claimed) {
@@ -198,6 +209,12 @@ export const createRelayService = ({
   // pairing/device changes, so the operator never toggles it manually.
   const reconcile = async () => {
     try {
+      if (isRelayHardDisabled()) {
+        const config = await readConfig();
+        if (config.enabled) await writeConfig({ enabled: false, relayUrl: config.relayUrl });
+        stop();
+        return;
+      }
       const demand = await hasRelayDemand();
       const config = await readConfig();
       if (demand) {
@@ -270,6 +287,7 @@ export const createRelayService = ({
   // rather than requiring a separate manual toggle. Idempotent: a no-op when the
   // relay is already enabled and running.
   const ensureEnabledForPairing = async () => {
+    if (isRelayHardDisabled()) return null;
     const config = await readConfig();
     if (!config.enabled) {
       await writeConfig({ enabled: true, relayUrl: config.relayUrl });
@@ -295,6 +313,10 @@ export const createRelayService = ({
     });
 
     app.post('/api/openchamber/relay/enable', express.json({ limit: '16kb' }), async (req, res) => {
+      if (isRelayHardDisabled()) {
+        res.status(403).json({ error: RELAY_DISABLED_MESSAGE });
+        return;
+      }
       try {
         const current = await readConfig();
         const relayUrl = typeof req.body?.relayUrl === 'string' ? normalizeRelayUrl(req.body.relayUrl) : current.relayUrl;

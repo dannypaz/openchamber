@@ -171,6 +171,13 @@ const SETTINGS_SEARCH_ITEMS: readonly SettingsSearchItem[] = [
     keywords: ['telemetry', 'analytics'],
   },
   {
+    id: 'appearance.session-sharing',
+    page: 'appearance',
+    titleKey: 'settings.openchamber.visual.field.allowSessionSharing',
+    descriptionKey: 'settings.openchamber.visual.field.allowSessionSharingHint',
+    keywords: ['share', 'sharing', 'privacy', 'public link'],
+  },
+  {
     id: 'chat.render-mode',
     page: 'chat',
     titleKey: 'settings.openchamber.visual.section.chatRenderMode',

@@ -65,16 +65,25 @@ direct-mode `aps.badge`) → relay (`pushSendSchema.badge` → `aps.badge`). It 
 `body`/`data`); the relay still only delivers to bound tokens. The set is server-global, so every
 device token of a server sees the same badge.
 
+## Enablement (this fork)
+
+Mobile push is **off by default**: `addOrUpdateApnsToken` and `sendApnsToAllUiSessions` both
+no-op unless `OPENCHAMBER_APNS_PUSH_ENABLED=true` is set — no device token is stored or bound on
+the relay, and no push (relay or direct) is ever sent. See `DANNY_LIST.md` for the follow-up to
+finish wiring this up and flip it back on by default. Everything below describes the feature as it
+behaves once enabled.
+
 ## Modes
 
-- **Relay (default):** server has no Apple key; `OPENCHAMBER_PUSH_RELAY_URL` defaults to
-  `https://api.openchamber.dev/v1/push/send` (register URL is derived as `…/register-token`).
+- **Relay (default when enabled):** server has no Apple key; `OPENCHAMBER_PUSH_RELAY_URL` defaults
+  to `https://api.openchamber.dev/v1/push/send` (register URL is derived as `…/register-token`).
 - **Direct (fallback):** set `OPENCHAMBER_PUSH_RELAY_DISABLED=true` + `OPENCHAMBER_APNS_KEY_ID/
   TEAM_ID/P8` to sign+send from the server itself (HTTP/2 + ES256 JWT); no relay binding needed.
 
 ## Config
 
 Server (`apns-runtime.js`):
+- `OPENCHAMBER_APNS_PUSH_ENABLED=true` — required to turn the feature on at all (default: disabled).
 - `OPENCHAMBER_PUSH_RELAY_URL` (default the public relay), `OPENCHAMBER_APNS_ENVIRONMENT`
   (`sandbox` default / `production`). The signing keypair is auto-generated — nothing to set.
 - Direct fallback: `OPENCHAMBER_APNS_KEY_ID`, `OPENCHAMBER_APNS_TEAM_ID`, `OPENCHAMBER_APNS_P8`

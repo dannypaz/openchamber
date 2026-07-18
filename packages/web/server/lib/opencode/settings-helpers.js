@@ -768,6 +768,12 @@ export const createSettingsHelpers = (dependencies) => {
       result.reportUsage = candidate.reportUsage;
     }
 
+    // Session sharing opt-in (default: false/disabled) — sharing uploads the full
+    // session to OpenCode's hosted service and generates a public link.
+    if (typeof candidate.allowSessionSharing === 'boolean') {
+      result.allowSessionSharing = candidate.allowSessionSharing;
+    }
+
     // Global behavior prompt — synced to ~/.config/opencode/AGENTS.md
     if (typeof candidate.globalBehaviorPrompt === 'string') {
       const value = candidate.globalBehaviorPrompt;

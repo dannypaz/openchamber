@@ -12,6 +12,7 @@ import { computeSubtreeIds } from "./scoped-blocking-requests"
 import { opencodeClient } from "@/lib/opencode/client"
 import { mergeSessionDirectoryMetadata, useGlobalSessionsStore } from "@/stores/useGlobalSessionsStore"
 import { useConfigStore } from "@/stores/useConfigStore"
+import { useUIStore } from "@/stores/useUIStore"
 import { registerSessionDirectory } from "./sync-refs"
 import { isSyntheticPart } from "@/lib/messages/synthetic"
 import { getSessionMaterializationStatus, materializeSessionSnapshots } from "./materialization"
@@ -683,6 +684,9 @@ export async function updateSessionTitle(sessionId: string, title: string): Prom
 }
 
 export async function shareSession(sessionId: string): Promise<Session | null> {
+  if (!useUIStore.getState().allowSessionSharing) {
+    return null
+  }
   const sessionDirectory = getSessionDirectory(sessionId)
   const result = await sdk().session.share({ sessionID: sessionId, directory: sessionDirectory })
   const session = stripSessionDiffSnapshots(assertSdkData(result, "session.share"))
