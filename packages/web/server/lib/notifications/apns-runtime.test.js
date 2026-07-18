@@ -69,6 +69,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env.OPENCHAMBER_PUSH_RELAY_URL;
   delete process.env.OPENCHAMBER_PUSH_RELAY_DISABLED;
+  delete process.env.OPENCHAMBER_APNS_PUSH_ENABLED;
+});
+
+describe('apns runtime disabled by default', () => {
+  it('never registers a token or sends when OPENCHAMBER_APNS_PUSH_ENABLED is unset', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.OPENCHAMBER_PUSH_RELAY_URL = 'https://relay.test/v1/push/send';
+
+    const runtime = createApnsRuntime(makeDeps());
+    await runtime.addOrUpdateApnsToken('s1', 'tokenA');
+    await runtime.sendApnsToAllUiSessions({ title: 't', body: 'b' });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('apns runtime relay mode (default)', () => {
@@ -84,6 +99,7 @@ describe('apns runtime relay mode (default)', () => {
           }),
     );
     vi.stubGlobal('fetch', fetchMock);
+    process.env.OPENCHAMBER_APNS_PUSH_ENABLED = 'true';
     process.env.OPENCHAMBER_PUSH_RELAY_URL = 'https://relay.test/v1/push/send';
 
     const runtime = createApnsRuntime(makeDeps());
@@ -130,6 +146,7 @@ describe('apns runtime relay mode (default)', () => {
   it('reuses one persisted keypair (same serverId) across register + send', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ ok: true, results: [] }));
     vi.stubGlobal('fetch', fetchMock);
+    process.env.OPENCHAMBER_APNS_PUSH_ENABLED = 'true';
     process.env.OPENCHAMBER_PUSH_RELAY_URL = 'https://relay.test/v1/push/send';
 
     const deps = makeDeps();
@@ -147,6 +164,7 @@ describe('apns runtime relay mode (default)', () => {
   it('no-ops (no relay call) when no tokens are registered', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
+    process.env.OPENCHAMBER_APNS_PUSH_ENABLED = 'true';
     const runtime = createApnsRuntime(makeDeps());
     await runtime.sendApnsToAllUiSessions({ title: 't', body: 'b' });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -155,6 +173,7 @@ describe('apns runtime relay mode (default)', () => {
 
 describe('apns runtime direct fallback (relay disabled)', () => {
   it('signs an ES256 JWT and sends over http2 when relay is disabled', async () => {
+    process.env.OPENCHAMBER_APNS_PUSH_ENABLED = 'true';
     process.env.OPENCHAMBER_PUSH_RELAY_DISABLED = 'true';
     const targeted = [];
     const http2 = {

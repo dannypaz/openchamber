@@ -2,6 +2,15 @@
 
 Feature log tracking what shipped in each merged PR.
 
+## Unreleased — Disable phone-home by default (analytics, relay, mobile push)
+
+- Removed the update-check call to `api.openchamber.dev` entirely (server + VS Code paths); update checks now use npm registry + GitHub releases (`dannypaz/openchamber`) only.
+- Added an "Allow session sharing" setting (off by default) gating the Share feature, which otherwise uploads full chat sessions to OpenCode's hosted service.
+- The models.dev catalog is now only fetched once a provider is actually configured, instead of unconditionally on every load.
+- The private realtime relay (remote device pairing over `relay.openchamber.dev`) is now hard-disabled by default — set `OPENCHAMBER_RELAY_ENABLED=true` to allow it. This does not affect the separate "cloud" feature.
+- Mobile push (APNs) is now hard-disabled by default — set `OPENCHAMBER_APNS_PUSH_ENABLED=true` to allow it. No device token is stored/registered and nothing is sent until enabled.
+- **TODO:** finish wiring up and re-enable mobile push (APNs) by default — right now it's fully implemented but gated off; want to revisit and bring this feature back online.
+
 ## Unreleased — UI polish: sidebar footer and session metadata
 
 - Sidebar footer now uses `justify-between` layout to separate GitHub account control (left) from settings/shortcuts/about icons (right) for better visual balance, with a 6rem max-width on the right-side icon group.
