@@ -989,7 +989,7 @@ export const useUIStore = create<UIStore>()(
         mobileSessionPanelOpen: false,
         mobileSessionFilterProjectId: null,
         isExpandedInput: false,
-        reportUsage: true,
+        reportUsage: false,
         allowSessionSharing: false,
         shortcutOverrides: {},
         fileEditorKeymap: 'default',

@@ -763,7 +763,7 @@ export const createSettingsHelpers = (dependencies) => {
       }
     }
 
-    // Usage reporting opt-out (default: true/enabled)
+    // Usage reporting opt-in (default: false/disabled)
     if (typeof candidate.reportUsage === 'boolean') {
       result.reportUsage = candidate.reportUsage;
     }
