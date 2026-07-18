@@ -68,7 +68,12 @@ export const BranchSelector: React.FC<BranchSelectorProps> = ({
   const createInputRef = React.useRef<HTMLInputElement>(null);
 
   const stopDropdownTypeahead = React.useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
-    event.stopPropagation();
+    // Only stop propagation for navigation keys to prevent dropdown typeahead
+    // Allow all other keys (including typing) to work normally for macOS compatibility
+    const navigationKeys = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageUp', 'PageDown'];
+    if (navigationKeys.includes(event.key)) {
+      event.stopPropagation();
+    }
   }, []);
 
   const hasMultipleRemotes = remotes.length > 1;

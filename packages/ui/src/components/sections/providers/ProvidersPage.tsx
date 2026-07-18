@@ -562,14 +562,20 @@ export const ProvidersPage: React.FC = () => {
                       >
                         <div
                           className="flex items-center gap-2 border-b border-[var(--surface-subtle)] px-3 py-2"
-                          onKeyDown={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            // Only stop propagation for navigation keys to prevent dropdown typeahead
+                            // Allow all other keys (including typing) to work normally for macOS compatibility
+                            const navigationKeys = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageUp', 'PageDown', 'Escape'];
+                            if (navigationKeys.includes(e.key)) {
+                              e.stopPropagation();
+                            }
+                          }}
                         >
                           <Icon name="search" className="h-4 w-4 text-muted-foreground" />
                           <input
                             type="text"
                             value={providerSearchQuery}
                             onChange={(e) => setProviderSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.stopPropagation()}
                             placeholder={t('settings.providers.page.connect.searchProvidersPlaceholder')}
                             className="flex-1 bg-transparent typography-meta outline-none placeholder:text-muted-foreground"
                             autoFocus

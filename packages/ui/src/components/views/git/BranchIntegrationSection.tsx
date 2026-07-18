@@ -318,7 +318,14 @@ export const BranchIntegrationSection: React.FC<BranchIntegrationSectionProps> =
                 placeholder={t('gitView.branch.searchPlaceholder')}
                 value={branchSearch}
                 onValueChange={setBranchSearch}
-                onKeyDown={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                  // Only stop propagation for navigation keys to prevent dropdown typeahead
+                  // Allow all other keys (including typing) to work normally for macOS compatibility
+                  const navigationKeys = ['ArrowDown', 'ArrowUp', 'Home', 'End', 'PageUp', 'PageDown'];
+                  if (navigationKeys.includes(event.key)) {
+                    event.stopPropagation();
+                  }
+                }}
               />
               <CommandList className="h-full min-h-0" disableHorizontal>
                 <CommandEmpty>{t('gitView.branch.empty')}</CommandEmpty>
