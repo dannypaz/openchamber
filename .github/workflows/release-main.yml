@@ -198,7 +198,7 @@ jobs:
             -c.publish.channel=main \
             -c.extraMetadata.version=${{ needs.compute-version.outputs.version }}
           bun run verify:opencode-cli:packaged
-          bun run verify:linux-appimage "dist/OpenChamber-${{ needs.compute-version.outputs.version }}-linux-arm64.AppImage"
+          bun run verify:linux-appimage "dist/OpenChamber-linux-arm64.AppImage"
 
       - name: Validate Linux update manifest
         working-directory: packages/electron
@@ -206,7 +206,7 @@ jobs:
           VERSION: ${{ needs.compute-version.outputs.version }}
         run: |
           set -euo pipefail
-          APPIMAGE="dist/OpenChamber-${VERSION}-linux-arm64.AppImage"
+          APPIMAGE="dist/OpenChamber-linux-arm64.AppImage"
           node ./scripts/verify-update-manifest.mjs "dist/main-linux-arm64.yml" "$APPIMAGE" "$VERSION"
 
       - name: Upload Linux artifacts to release

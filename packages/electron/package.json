@@ -112,7 +112,7 @@
       "category": "Development",
       "icon": "resources/icons/icon.png",
       "executableName": "openchamber",
-      "artifactName": "${productName}-${version}-linux-${arch}.${ext}",
+      "artifactName": "${productName}-linux-${arch}.${ext}",
       "desktop": {
         "entry": {
           "Name": "OpenChamber",

@@ -82,6 +82,8 @@ Running a packaged Linux AppImage requires FUSE (`libfuse.so.2`, typically `libf
 
 Linux updates are supported only when the packaged app is running from a writable AppImage. Update checks, downloads, and installation report an actionable error when `APPIMAGE` is missing, invalid, or read-only; a missing release feed (`latest-linux.yml` 404 before the first Linux publish) is treated as “no update available”. macOS and Windows updater behavior is unchanged. Release builds keep `latest-linux.yml` (x64) and `latest-linux-arm64.yml` separate and validate each manifest against its AppImage before upload. Linux AppImages download full updates (no `.blockmap` differential channel yet).
 
+The Linux `artifactName` is intentionally version-less (`OpenChamber-linux-${arch}.AppImage`, e.g. `OpenChamber-linux-x86_64.AppImage`). `electron-updater`'s `AppImageUpdater` overwrites the running file in place only when the current filename contains no `x.y.z` version; a versioned name makes it write the update to a *different* path, delete the old file, and orphan any desktop/launcher integration and taskbar icon association (`StartupWMClass`), which is why a versioned build "updates but won't reopen with the right icon". Keep the name version-less across `package.json`, both release workflows, and `verify-linux-appimage.mjs`. Because `quitAndInstall` spawns the replacement while this process is still shutting down, `desktop_restart` releases the single-instance lock (`app.releaseSingleInstanceLock()`) on Linux first so the relaunched instance can acquire it instead of exiting silently.
+
 ### Update Channels
 
 Two update channels are published from `dannypaz/openchamber`:

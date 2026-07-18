@@ -4124,6 +4124,19 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
               : 'stable';
             const shouldTryManualInstall = process.platform === 'darwin' && updateChannel === 'main';
 
+            // On Linux, quitAndInstall overwrites the AppImage in place and immediately
+            // spawns the replacement. That child boots while this process is still tearing
+            // down (server + sidecar shutdown), so it would lose requestSingleInstanceLock
+            // and exit silently — the update appears to "not reopen". Release the lock first
+            // so the relaunched instance can acquire it.
+            if (process.platform === 'linux') {
+              try {
+                app.releaseSingleInstanceLock();
+              } catch (releaseErr) {
+                log.warn('[electron] releaseSingleInstanceLock failed before quitAndInstall', releaseErr);
+              }
+            }
+
             try {
               autoUpdater.quitAndInstall(false, true);
             } catch (quitInstallErr) {
