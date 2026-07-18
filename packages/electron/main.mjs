@@ -71,15 +71,6 @@ if (isDev) {
 }
 app.setAppUserModelId(APP_USER_MODEL_ID);
 app.commandLine.appendSwitch('proxy-bypass-list', '<-loopback>');
-if (process.platform === 'linux') {
-  // Guarantees the Chromium OS sandbox is off even when the AppImage is run
-  // directly (not through the installed .desktop entry, which electron-builder
-  // already defaults to `Exec=AppRun --no-sandbox`). Without this, newer
-  // kernels that restrict unprivileged user namespaces via AppArmor
-  // (Ubuntu 23.10+ and most current arm64 distros) fail sandbox setup outright,
-  // and arm64 AppImages often lack a working setuid chrome-sandbox helper.
-  app.commandLine.appendSwitch('no-sandbox');
-}
 
 protocol.registerSchemesAsPrivileged([
   {
