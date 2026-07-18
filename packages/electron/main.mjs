@@ -2883,14 +2883,103 @@ const setupAutoUpdater = () => {
     log.error('[electron] autoUpdater error', err);
     // Clear pending update on signature validation or fatal errors to prevent
     // "restart to update" from attempting to install a broken download.
+    // Exception: on the 'main' channel with ad-hoc signing, signature validation
+    // errors are expected. Keep the pending update so quitAndInstall can be attempted
+    // (it may succeed on some systems, or fall back to manual replacement).
     const errMsg = err && typeof err.message === 'string' ? err.message.toLowerCase() : '';
-    if (errMsg.includes('signature') || errMsg.includes('validation') || errMsg.includes('disabled')) {
+    const isSignatureError = errMsg.includes('signature') || errMsg.includes('validation') || errMsg.includes('disabled');
+    if (isSignatureError) {
+      const isMainChannelMac = process.platform === 'darwin' && updateChannel === 'main';
       if (state.pendingUpdate) {
-        log.warn('[electron] clearing pendingUpdate due to updater error');
-        state.pendingUpdate = null;
+        if (isMainChannelMac && state.pendingUpdate.downloaded) {
+          // Keep the pending update on main channel - quitAndInstall may still work
+          log.warn('[electron] signature validation failed on main channel, keeping pendingUpdate for manual installation attempt');
+        } else {
+          log.warn('[electron] clearing pendingUpdate due to updater error');
+          state.pendingUpdate = null;
+        }
       }
     }
   });
+};
+
+/**
+ * Manually install an update for ad-hoc signed builds where Squirrel's signature
+ * validation fails. This extracts the downloaded zip and replaces the running app bundle.
+ * Only safe on macOS when the app is running from /Applications and the update zip exists.
+ */
+const manuallyInstallUpdate = async () => {
+  if (process.platform !== 'darwin') {
+    throw new Error('Manual update installation is only supported on macOS');
+  }
+
+  // Find the downloaded update
+  const cacheDir = path.join(app.getPath('cache'), '@openchamberelectron-updater', 'pending');
+  let updateZip = null;
+  try {
+    const files = await fsp.readdir(cacheDir);
+    updateZip = files.find(f => f.startsWith('OpenChamber-') && f.endsWith('-mac-arm64.zip'));
+    if (!updateZip) {
+      throw new Error('No update zip found in cache');
+    }
+  } catch (err) {
+    throw new Error(`Failed to find update zip: ${err.message}`);
+  }
+
+  const updateZipPath = path.join(cacheDir, updateZip);
+  const currentAppPath = app.getPath('exe').split('/Contents/')[0]; // /Applications/OpenChamber.app
+  const appDir = path.dirname(currentAppPath);
+  const tempExtractDir = path.join(appDir, '.openchamber-update-tmp');
+
+  log.info('[electron] manually installing update', { updateZipPath, currentAppPath, tempExtractDir });
+
+  try {
+    // Extract the update
+    await fsp.mkdir(tempExtractDir, { recursive: true });
+    const { stderr } = await execFileAsync('unzip', ['-q', '-o', updateZipPath, '-d', tempExtractDir]);
+    if (stderr) {
+      log.warn('[electron] unzip stderr:', stderr);
+    }
+
+    // Find the extracted app bundle
+    const extractedFiles = await fsp.readdir(tempExtractDir);
+    const appBundle = extractedFiles.find(f => f.endsWith('.app'));
+    if (!appBundle) {
+      throw new Error('No .app bundle found in extracted update');
+    }
+    const extractedAppPath = path.join(tempExtractDir, appBundle);
+
+    // Backup current app (optional but safer)
+    const backupPath = `${currentAppPath}.bak`;
+    log.info('[electron] backing up current app to', backupPath);
+    try {
+      await fsp.rm(backupPath, { recursive: true, force: true });
+    } catch {}
+    await fsp.rename(currentAppPath, backupPath);
+
+    // Move new app into place
+    log.info('[electron] moving new app from', extractedAppPath, 'to', currentAppPath);
+    await fsp.rename(extractedAppPath, currentAppPath);
+
+    // Clean up
+    await fsp.rm(tempExtractDir, { recursive: true, force: true });
+    log.info('[electron] manual update installation succeeded');
+    return true;
+  } catch (err) {
+    log.error('[electron] manual update installation failed', err);
+    // Try to restore backup if move failed
+    const backupPath = `${currentAppPath}.bak`;
+    try {
+      const backupExists = await pathExists(backupPath);
+      if (backupExists) {
+        log.info('[electron] restoring backup from', backupPath);
+        await fsp.rename(backupPath, currentAppPath);
+      }
+    } catch (restoreErr) {
+      log.error('[electron] failed to restore backup', restoreErr);
+    }
+    throw err;
+  }
 };
 
 const parseRelevantChangelogNotes = async (fromVersion, toVersion) => {
@@ -4024,11 +4113,36 @@ const handleInvoke = async (browserWindow, command, args = {}) => {
       // Defer so the IPC reply flushes before the app starts shutting down.
       // Without this, quitAndInstall() can race with the renderer's pending
       // invoke and the restart appears to do nothing from the UI side.
-      setImmediate(() => {
+      setImmediate(async () => {
         try {
           if (applyUpdate) {
             killSidecar();
-            autoUpdater.quitAndInstall(false, true);
+
+            // For main channel on macOS, try manual installation if quitAndInstall fails
+            const updateChannel = typeof __OPENCHAMBER_UPDATE_CHANNEL__ !== 'undefined'
+              ? __OPENCHAMBER_UPDATE_CHANNEL__
+              : 'stable';
+            const shouldTryManualInstall = process.platform === 'darwin' && updateChannel === 'main';
+
+            try {
+              autoUpdater.quitAndInstall(false, true);
+            } catch (quitInstallErr) {
+              if (shouldTryManualInstall) {
+                log.warn('[electron] quitAndInstall failed, attempting manual installation for main channel', quitInstallErr);
+                try {
+                  await manuallyInstallUpdate();
+                  log.info('[electron] manual installation succeeded, relaunching');
+                  prepareForQuit();
+                  app.relaunch();
+                  app.exit(0);
+                  return;
+                } catch (manualErr) {
+                  log.error('[electron] manual installation also failed', manualErr);
+                }
+              }
+              // Fall through to regular restart
+              throw quitInstallErr;
+            }
           } else {
             prepareForQuit();
             app.relaunch();
