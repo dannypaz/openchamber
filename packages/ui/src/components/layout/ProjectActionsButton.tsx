@@ -260,7 +260,7 @@ export const ProjectActionsButton = ({
     id: AUTO_DISCOVER_ACTION_ID,
     name: t('projectActions.actions.autoDiscover'),
     command: '',
-    icon: 'radar',
+    icon: 'scan-2',
     autoOpenUrl: true,
   }), [t]);
 
@@ -450,7 +450,7 @@ export const ProjectActionsButton = ({
             id: AUTO_DISCOVER_ACTION_ID,
             name: t('projectActions.actions.autoDiscover'),
             command: devServer.command,
-            icon: 'radar',
+            icon: 'scan-2',
             autoOpenUrl: true,
             openUrl: devServer.previewUrlHint || '',
           };
@@ -727,56 +727,52 @@ export const ProjectActionsButton = ({
 
   const selectedIconKey = (resolvedSelected.icon || 'play') as keyof typeof PROJECT_ACTION_ICON_MAP;
   const selectedIconName = resolvedSelected.id === AUTO_DISCOVER_ACTION_ID
-    ? 'radar'
+    ? 'scan-2'
     : PROJECT_ACTION_ICON_MAP[selectedIconKey] || 'play';
   const selectedRunKey = toProjectActionRunKey(normalizedDirectory, resolvedSelected.id);
   const selectedRunning = projectActionRuns[selectedRunKey];
   const isStoppingSelected = selectedRunning?.status === 'stopping';
   const isWaitingForSelectedPreview = selectedRunning?.status === 'waiting-for-preview';
   const showSelectedPreviewButton = Boolean(selectedRunning && selectedRunPreviewUrl);
-  // Only show the "Discover actions" tooltip while the radar icon itself is
-  // showing — once a run starts, the icon swaps to a spinner/stop and the
-  // aria-label already communicates "Stop {name}".
-  const showDiscoverTooltip = resolvedSelected.id === AUTO_DISCOVER_ACTION_ID && !selectedRunning;
   const handleOpenSelectedPreview = () => {
     if (!selectedRunning || !selectedRunPreviewUrl) {
       return;
     }
     openContextPreview(selectedRunning.directory, selectedRunPreviewUrl);
   };
+  const isAutoDiscoverSelected = resolvedSelected.id === AUTO_DISCOVER_ACTION_ID;
 
   if (compact) {
-    const compactPrimaryButton = (
-      <button
-        type="button"
-        disabled={isLoading || isStoppingSelected}
-        className={cn(
-          'app-region-no-drag inline-flex h-9 w-9 items-center justify-center rounded-[10px] [corner-shape:squircle] supports-[corner-shape:squircle]:rounded-[50px] p-2',
-          'typography-ui-label font-medium text-muted-foreground hover:bg-interactive-hover hover:text-foreground transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-          'disabled:cursor-not-allowed',
-          className
-        )}
-        onClick={handlePrimaryClick}
-        aria-label={selectedRunning
-          ? t('projectActions.actions.stopNamedAria', { name: resolvedSelected.name })
-          : t('projectActions.actions.runNamedAria', { name: resolvedSelected.name })}
-      >
-        {isStoppingSelected || isWaitingForSelectedPreview
-          ? <Icon name="loader-4" className="h-5 w-5 animate-spin text-[var(--status-warning)]" />
-          : selectedRunning
-            ? <Icon name="stop" className="h-5 w-5 text-[var(--status-warning)]" />
-            : <Icon name={selectedIconName} className="h-5 w-5" />}
-      </button>
-    );
     return (
       <div className="inline-flex items-center">
-        {showDiscoverTooltip ? (
-          <Tooltip>
-            <TooltipTrigger asChild>{compactPrimaryButton}</TooltipTrigger>
-            <TooltipContent sideOffset={6}>{t('projectActions.actions.discoverActionsTooltip')}</TooltipContent>
-          </Tooltip>
-        ) : compactPrimaryButton}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              disabled={isLoading || isStoppingSelected}
+              className={cn(
+                'app-region-no-drag inline-flex h-9 w-9 items-center justify-center rounded-[10px] [corner-shape:squircle] supports-[corner-shape:squircle]:rounded-[50px] p-2',
+                'typography-ui-label font-medium text-muted-foreground hover:bg-interactive-hover hover:text-foreground transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                'disabled:cursor-not-allowed',
+                className
+              )}
+              onClick={handlePrimaryClick}
+              aria-label={selectedRunning
+                ? t('projectActions.actions.stopNamedAria', { name: resolvedSelected.name })
+                : t('projectActions.actions.runNamedAria', { name: resolvedSelected.name })}
+            >
+              {isStoppingSelected || isWaitingForSelectedPreview
+                ? <Icon name="loader-4" className="h-5 w-5 animate-spin text-[var(--status-warning)]" />
+                : selectedRunning
+                  ? <Icon name="stop" className="h-5 w-5 text-[var(--status-warning)]" />
+                  : <Icon name={selectedIconName} className="h-5 w-5" />}
+            </button>
+          </TooltipTrigger>
+          {isAutoDiscoverSelected ? (
+            <TooltipContent sideOffset={6}>{t('projectActions.actions.autoDiscoverTooltip')}</TooltipContent>
+          ) : null}
+        </Tooltip>
         {showSelectedPreviewButton ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -811,7 +807,7 @@ export const ProjectActionsButton = ({
             {displayActions.map((entry) => {
               const iconKey = (entry.icon || 'play') as keyof typeof PROJECT_ACTION_ICON_MAP;
               const iconName = entry.id === AUTO_DISCOVER_ACTION_ID
-                ? 'radar'
+                ? 'scan-2'
                 : PROJECT_ACTION_ICON_MAP[iconKey] || 'play';
               const runKey = toProjectActionRunKey(normalizedDirectory, entry.id);
               const runState = projectActionRuns[runKey];
@@ -852,8 +848,8 @@ export const ProjectActionsButton = ({
         className
       )}
     >
-      {(() => {
-        const primaryButton = (
+      <Tooltip>
+        <TooltipTrigger asChild>
           <button
             type="button"
             onClick={handlePrimaryClick}
@@ -875,14 +871,11 @@ export const ProjectActionsButton = ({
                   : <Icon name={selectedIconName} className="h-4 w-4" />}
             </span>
           </button>
-        );
-        return showDiscoverTooltip ? (
-          <Tooltip>
-            <TooltipTrigger asChild>{primaryButton}</TooltipTrigger>
-            <TooltipContent sideOffset={6}>{t('projectActions.actions.discoverActionsTooltip')}</TooltipContent>
-          </Tooltip>
-        ) : primaryButton;
-      })()}
+        </TooltipTrigger>
+        {isAutoDiscoverSelected ? (
+          <TooltipContent sideOffset={6}>{t('projectActions.actions.autoDiscoverTooltip')}</TooltipContent>
+        ) : null}
+      </Tooltip>
 
       {showSelectedPreviewButton ? (
         <Tooltip>
@@ -927,7 +920,7 @@ export const ProjectActionsButton = ({
           {displayActions.map((entry) => {
             const iconKey = (entry.icon || 'play') as keyof typeof PROJECT_ACTION_ICON_MAP;
             const iconName = entry.id === AUTO_DISCOVER_ACTION_ID
-              ? 'radar'
+              ? 'scan-2'
               : PROJECT_ACTION_ICON_MAP[iconKey] || 'play';
             const runKey = toProjectActionRunKey(normalizedDirectory, entry.id);
             const runState = projectActionRuns[runKey];
