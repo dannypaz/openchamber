@@ -286,6 +286,17 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
     }
   }, [error, restartingDesktop]);
 
+  // Safety timeout: if app hasn't quit after 5 seconds, re-enable the button
+  useEffect(() => {
+    if (!restartingDesktop) return;
+
+    const timeoutId = setTimeout(() => {
+      setRestartingDesktop(false);
+    }, 5000);
+
+    return () => clearTimeout(timeoutId);
+  }, [restartingDesktop]);
+
   const isWebUpdating = webUpdateState !== 'idle' && webUpdateState !== 'error';
 
   const changelog = useMemo<ParsedChangelog | null>(() => {

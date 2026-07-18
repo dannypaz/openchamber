@@ -311,6 +311,13 @@ export const useUpdateStore = create<UpdateStore>()((set, get) => ({
       if (!ok) {
         throw new Error('Desktop restart only works on Local instance');
       }
+
+      // If restart was initiated successfully, wait a moment to see if app quits
+      // If we're still here after 3 seconds, something went wrong
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // If we reach here, the restart didn't work
+      throw new Error('Restart was initiated but the app did not quit. The update may require manual installation.');
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to restart',
