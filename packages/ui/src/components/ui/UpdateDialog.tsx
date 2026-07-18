@@ -205,6 +205,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   const [copied, setCopied] = useState(false);
   const [webUpdateState, setWebUpdateState] = useState<WebUpdateState>('idle');
   const [webError, setWebError] = useState<string | null>(null);
+  const [restartingDesktop, setRestartingDesktop] = useState(false);
 
   const releaseUrl = info?.version
     ? (info.releaseUrl || `${GITHUB_RELEASES_URL}/tag/v${info.version}`)
@@ -224,6 +225,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
     if (!open) {
       setWebUpdateState('idle');
       setWebError(null);
+      setRestartingDesktop(false);
     }
   }, [open]);
 
@@ -270,6 +272,19 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   const handleMobileUpdate = useCallback(() => {
     void handleOpenExternal(mobileUpdateUrl);
   }, [handleOpenExternal, mobileUpdateUrl]);
+
+  const handleDesktopRestart = useCallback(() => {
+    if (restartingDesktop) return;
+    setRestartingDesktop(true);
+    onRestart();
+  }, [restartingDesktop, onRestart]);
+
+  // If the restart attempt failed, the app never quit, so re-enable the button.
+  useEffect(() => {
+    if (error && restartingDesktop) {
+      setRestartingDesktop(false);
+    }
+  }, [error, restartingDesktop]);
 
   const isWebUpdating = webUpdateState !== 'idle' && webUpdateState !== 'error';
 
@@ -501,13 +516,23 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
               </button>
             )}
 
-            {!isWebRuntime && !isMobileRuntime && downloaded && (
+            {!isWebRuntime && !isMobileRuntime && downloaded && !restartingDesktop && (
               <button
-                onClick={onRestart}
+                onClick={handleDesktopRestart}
                 className="flex items-center justify-center gap-2 px-5 py-2 rounded-md text-sm font-medium bg-[var(--status-success)] text-white hover:opacity-90 transition-opacity"
               >
                 <Icon name="restart" className="h-4 w-4" />
                 {t('updateDialog.actions.restartToUpdate')}
+              </button>
+            )}
+
+            {!isWebRuntime && !isMobileRuntime && downloaded && restartingDesktop && (
+              <button
+                disabled
+                className="flex items-center justify-center gap-2 px-5 py-2 rounded-md text-sm font-medium bg-[var(--status-success)]/50 text-white cursor-not-allowed"
+              >
+                <Icon name="loader" className="h-4 w-4 animate-spin" />
+                {t('updateDialog.status.restarting')}
               </button>
             )}
 
