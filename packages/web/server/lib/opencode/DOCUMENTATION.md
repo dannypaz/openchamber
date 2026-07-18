@@ -15,6 +15,8 @@ This module provides OpenCode server integration utilities for the web server ru
 - `packages/web/server/lib/opencode/ephemeral-target-routes.js`: HTTP surface (register/deregister/list) over ephemeral-targets.js.
 - `packages/web/server/lib/opencode/env-runtime.js`: OpenCode CLI/binary resolution and shell environment runtime.
 - `packages/web/server/lib/opencode/env-config.js`: OpenCode-related environment variable parsing and validation (host/port/hostname).
+- `packages/web/server/lib/opencode/managed-install-runtime.js`: downloads, verifies, and version-manages an OpenChamber-owned OpenCode CLI binary under the data dir, for use when no user-installed OpenCode is found.
+- `packages/web/server/lib/opencode/opencode-version-lookup.js`: OpenCode release version lookup (npm `opencode-ai` + GitHub `anomalyco/opencode` releases) and semver-ish comparison shared by upgrade-status and the managed installer.
 - `packages/web/server/lib/opencode/hmr-state-runtime.js`: HMR-persistent runtime state initialization, auth-state bootstrap, and HMR sync helpers.
 - `packages/web/server/lib/opencode/bootstrap-runtime.js`: base app bootstrap runtime for status/auth/tts/notification/OpenChamber route wiring.
 - `packages/web/server/lib/opencode/network-runtime.js`: OpenCode URL construction, health-probe readiness checks, and API prefix runtime.
@@ -76,11 +78,12 @@ This module provides OpenCode server integration utilities for the web server ru
   - `GET /api/config/settings`
   - `PUT /api/config/settings`
   - `GET /api/config/opencode-resolution`
-  - `POST /api/opencode/upgrade` (proxies OpenCode upgrade, then restarts managed OpenCode so the new binary is active)
-  - `GET /api/opencode/upgrade-status`
+  - `POST /api/opencode/upgrade`: for `bundled` source, 409s (Desktop owns its own lifecycle). For `managed-download` source (see managed-install-runtime.js), re-downloads/installs the target version directly instead of calling OpenCode's own `/global/upgrade`, then restarts managed OpenCode. For every other source, proxies OpenCode's own `/global/upgrade`, then restarts managed OpenCode so the new binary is active.
+  - `GET /api/opencode/upgrade-status`: includes a `source` field (the resolved OpenCode binary source) alongside `available`/`currentVersion`/`latestVersion`.
   - `POST /api/opencode/directory`
   - `GET /api/provider/:providerId/source`
   - `DELETE /api/provider/:providerId/auth`
+- Dep `managedOpenCodeInstallRuntime` (see managed-install-runtime.js) is required for the `managed-download` upgrade branch.
 - Owns lazy auth library loading for provider auth checks/removal.
 - Keeps route behavior independent from composition root; `index.js` now supplies dependencies only.
 
@@ -116,12 +119,13 @@ This module provides OpenCode server integration utilities for the web server ru
 
 ## Public exports (env-runtime.js)
 - `createOpenCodeEnvRuntime(dependencies)`: creates runtime that owns OpenCode CLI environment and binary discovery state.
+- Dep `resolveManagedOpenCodeCliPath` (optional; typically `managed-install-runtime.js`'s `resolveManagedOpenCodeCliPath`): consulted by `resolveOpencodeCliPath()` as a `managed-download` resolution step, ordered after PATH/known-location/`where`/shell lookups and before the Electron-only `bundled` last resort — a genuine user install always wins over a managed download.
 - Returned API:
   - `applyLoginShellEnvSnapshot()`
   - `getLoginShellEnvSnapshot()`
   - `ensureOpencodeCliEnv()`
   - `applyOpencodeBinaryFromSettings()`
-  - `resolveOpencodeCliPath()`
+  - `resolveOpencodeCliPath()`: resolution order is explicit env override (`env`) > PATH (`path`) > known install-location fallbacks (`fallback`) > Windows `where`/Unix shell-resolved lookup (`where`/`shell`) > previously-installed managed download (`managed-download`) > Electron-bundled binary (`bundled`, last resort).
   - `resolveManagedOpenCodeLaunchSpec(opencodePath)`: resolves the effective managed OpenCode launch target, unwrapping Windows package-manager shims to a direct native binary or explicit runtime+script when possible.
   - `resolveGitBinaryForSpawn()`
   - `resolveWslExecutablePath()`
@@ -129,6 +133,21 @@ This module provides OpenCode server integration utilities for the web server ru
   - `isExecutable(filePath)`
   - `searchPathFor(binaryName, searchPath?)`: resolves an executable from the supplied PATH value, defaulting to the process PATH.
   - `clearResolvedOpenCodeBinary()`
+
+## Public exports (managed-install-runtime.js)
+- `createManagedOpenCodeInstallRuntime({ openchamberDataDir, spawnSync?, fetch?, webPackageJsonPath? })`: creates runtime for downloading, verifying, and version-managing an OpenChamber-owned OpenCode CLI install used by `packages/web` (CLI/Web only — not Electron, which bundles at build time via `packages/electron/scripts/prepare-opencode-cli.mjs`, and not VS Code).
+- Layout: `<openchamberDataDir>/opencode-cli/<version>/opencode[.exe]`, with a `current-version` pointer file (temp-write + rename, not a symlink, for Windows compatibility) selecting the active version. Keeps the current version plus one previous, pruning older ones after a successful install.
+- Returned API:
+  - `getManagedOpenCodeInstallDir()`
+  - `resolveManagedOpenCodeCliPath()`: pure, synchronous, no network — returns the active managed binary path if present and executable, else `null`. This is what `env-runtime.js` consumes for passive resolution.
+  - `resolvePinnedOpenCodeVersion()`: reads the exact `@opencode-ai/sdk` version pinned in `packages/web/package.json` as the default install target.
+  - `artifactForHostPlatform()`: maps the running `{platform, arch}` to a GitHub release asset name/binary name (mirrors, but does not share code with, Electron's build-time `artifactForPlatform`).
+  - `installManagedOpenCode({ version })`: downloads the release asset directly from `github.com/anomalyco/opencode/releases`, extracts (`adm-zip` for `.zip`, `tar` for `.tar.gz`), verifies the extracted binary's `--version` output matches the requested version, then atomically installs it (temp dir + rename) and flips the `current-version` pointer. Throws on any failure — never leaves a partially-installed version live behind the pointer.
+- Never triggered implicitly by this module — callers (`packages/web/bin/lib/cli-opencode-install.js`, and the `managed-download` branch of `routes.js`'s `POST /api/opencode/upgrade`) decide when to install/upgrade.
+
+## Public exports (opencode-version-lookup.js)
+- `fetchLatestOpenCodeVersion()`: races the npm registry (`opencode-ai`) and GitHub releases (`anomalyco/opencode`) lookups (kept module-private), returns the higher resolved semver.
+- `compareVersions(left, right)`: semver-ish comparison, used by `routes.js`'s upgrade-status endpoint and `managed-install-runtime.js`'s version pruning.
 
 ## Public exports (env-config.js)
 - `resolveOpenCodeEnvConfig(options?)`: resolves and validates OpenCode host/port/hostname environment configuration.
