@@ -285,12 +285,15 @@ interface ModelControlsProps {
     className?: string;
     mobilePanel?: MobileControlsPanel;
     onMobilePanelChange?: (panel: MobileControlsPanel) => void;
+    /** Set false when the instance switcher is already shown elsewhere (e.g. next to the draft project/branch selectors) to avoid rendering it twice. */
+    showInstanceSwitcher?: boolean;
 }
 
 export const ModelControls: React.FC<ModelControlsProps> = ({
     className,
     mobilePanel,
     onMobilePanelChange,
+    showInstanceSwitcher = true,
 }) => {
     const { t } = useI18n();
     const { isReady, isUnavailable } = useOpenCodeReadiness();
@@ -2612,7 +2615,7 @@ export const ModelControls: React.FC<ModelControlsProps> = ({
     };
 
     const renderInstanceSwitcher = () => {
-        if (!isDesktopInstanceSwitcherAvailable || isCompact) {
+        if (!isDesktopInstanceSwitcherAvailable || isCompact || !showInstanceSwitcher) {
             return null;
         }
 

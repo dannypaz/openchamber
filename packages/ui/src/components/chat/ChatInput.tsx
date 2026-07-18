@@ -33,6 +33,7 @@ import { SkillAutocomplete, type SkillAutocompleteHandle } from './SkillAutocomp
 import { SnippetAutocomplete, type SnippetAutocompleteHandle } from './SnippetAutocomplete';
 import { cn, formatDirectoryName, isMacOS } from '@/lib/utils';
 import { ModelControls } from './ModelControls';
+import { InstanceSwitcher } from './InstanceSwitcher';
 import { parseAgentMentions } from '@/lib/messages/agentMentions';
 import { StatusRow } from './StatusRow';
 import { PendingChangesBar } from './PendingChangesBar';
@@ -5038,6 +5039,8 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                             </SelectContent>
                         </Select>
 
+                        <InstanceSwitcher />
+
                         {shouldShowDraftBranchSelector ? (
                             <DropdownMenu open={branchDropdownOpen} onOpenChange={setBranchDropdownOpen}>
                                 <DropdownMenuTrigger asChild>
@@ -5758,7 +5761,10 @@ const ChatInputComponent: React.FC<ChatInputProps> = ({ onOpenSettings, scrollTo
                                     <SessionGoalObjectiveCounter length={message.length} />
                                 </div>
                                 <div className={cn('flex items-center flex-1 justify-end', footerGapClass, 'md:gap-x-3')}>
-                                    <MemoModelControls className={cn('flex-1 min-w-0 justify-end')} />
+                                    <MemoModelControls
+                                        className={cn('flex-1 min-w-0 justify-end')}
+                                        showInstanceSwitcher={!(showDraftTargetSelectors && !isMobile)}
+                                    />
                                     <MemoComposerDictation
                                         radius={chatInputRadius}
                                         isMobile={isMobile}
