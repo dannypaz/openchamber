@@ -86,7 +86,7 @@
 
 ## Quick Start
 
-> **Prerequisite:** Desktop bundles the matching OpenCode CLI. CLI/Web and VS Code use your installed [OpenCode CLI](https://opencode.ai).
+> **Prerequisite:** Desktop bundles the matching OpenCode CLI. CLI/Web auto-installs a managed OpenCode CLI on first run if none is found (or uses your existing install/PATH). VS Code uses your installed [OpenCode CLI](https://opencode.ai).
 
 ### **Desktop (macOS + Windows + Linux)**
 

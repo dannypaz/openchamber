@@ -375,8 +375,8 @@ export const DefaultsSettings: React.FC = () => {
                 providerId={parsedModel.providerId}
                 modelId={parsedModel.modelId}
                 onChange={handleModelChange}
-                showAutoOption
                 className={SETTINGS_CUSTOM_TRIGGER_CLASS}
+                showAutoOption
               />
             </SettingsFieldRow>
 
@@ -455,70 +455,81 @@ export const DefaultsSettings: React.FC = () => {
               </SettingsFieldRow>
             ) : null}
           </div>
-        </div>
-      </SettingsSection>
 
-      <SettingsSection title={t('settings.openchamber.defaults.modelRouter.title')}>
-        <div className="mt-0 mb-1 typography-meta text-muted-foreground">
-          {t('settings.openchamber.defaults.modelRouter.description')}
-        </div>
+          <div className="space-y-3 pt-6">
+            <div className="flex items-center gap-1.5">
+              <SettingsGroupTitle>
+                {t('settings.openchamber.defaults.modelRouter.title')}
+              </SettingsGroupTitle>
+              <SettingsInfoHint>
+                {t('settings.openchamber.defaults.modelRouter.description')}
+              </SettingsInfoHint>
+            </div>
 
-        <SettingsFieldRow
-          settingsItem="sessions.model-router-frontier"
-          label={t('settings.openchamber.defaults.modelRouter.frontierModel')}
-        >
-          <ModelSelector
-            providerId={parsedModelRouterFrontier.providerId}
-            modelId={parsedModelRouterFrontier.modelId}
-            onChange={handleModelRouterFrontierOverrideChange}
-            placeholder={t('settings.openchamber.defaults.modelRouter.frontierModelHint')}
-            className={SETTINGS_CUSTOM_TRIGGER_CLASS}
-          />
-        </SettingsFieldRow>
+            <SettingsFieldRow
+              settingsItem="sessions.model-router-frontier"
+              label={t('settings.openchamber.defaults.modelRouter.frontierModel')}
+            >
+              <ModelSelector
+                providerId={parsedModelRouterFrontier.providerId}
+                modelId={parsedModelRouterFrontier.modelId}
+                onChange={handleModelRouterFrontierOverrideChange}
+                placeholder={t('settings.openchamber.defaults.modelRouter.frontierModelHint')}
+                className={SETTINGS_CUSTOM_TRIGGER_CLASS}
+              />
+            </SettingsFieldRow>
 
-        <SettingsFieldRow
-          settingsItem="sessions.model-router-cheap"
-          label={t('settings.openchamber.defaults.modelRouter.cheapModel')}
-        >
-          <ModelSelector
-            providerId={parsedModelRouterCheap.providerId}
-            modelId={parsedModelRouterCheap.modelId}
-            onChange={handleModelRouterCheapOverrideChange}
-            placeholder={t('settings.openchamber.defaults.modelRouter.cheapModelHint')}
-            className={SETTINGS_CUSTOM_TRIGGER_CLASS}
-          />
-        </SettingsFieldRow>
-      </SettingsSection>
-
-      {showOpenInAppSetting ? (
-        <SettingsSection title={t('settings.openchamber.defaults.openInApp.title')}>
-          <div className="mt-0 mb-1 typography-meta text-muted-foreground">
-            {t('settings.openchamber.defaults.openInApp.description')}
+            <SettingsFieldRow
+              settingsItem="sessions.model-router-cheap"
+              label={t('settings.openchamber.defaults.modelRouter.cheapModel')}
+            >
+              <ModelSelector
+                providerId={parsedModelRouterCheap.providerId}
+                modelId={parsedModelRouterCheap.modelId}
+                onChange={handleModelRouterCheapOverrideChange}
+                placeholder={t('settings.openchamber.defaults.modelRouter.cheapModelHint')}
+                className={SETTINGS_CUSTOM_TRIGGER_CLASS}
+              />
+            </SettingsFieldRow>
           </div>
 
-          <SettingsFieldRow
-            settingsItem="sessions.default-open-in-app"
-            label={t('settings.openchamber.defaults.field.defaultOpenInApp')}
-          >
-            <Select value={selectedOpenInAppId} onValueChange={(id) => void selectOpenInApp(id)}>
-              <SelectTrigger
-                size={SETTINGS_SELECT_SIZE}
-                className={SETTINGS_SELECT_ROW_TRIGGER_CLASS}
-                aria-label={t('settings.openchamber.defaults.field.defaultOpenInAppAria')}
+          {showOpenInAppSetting ? (
+            <div className="space-y-3 pt-6">
+              <div className="flex items-center gap-1.5">
+                <SettingsGroupTitle>
+                  {t('settings.openchamber.defaults.openInApp.title')}
+                </SettingsGroupTitle>
+                <SettingsInfoHint>
+                  {t('settings.openchamber.defaults.openInApp.description')}
+                </SettingsInfoHint>
+              </div>
+
+              <SettingsFieldRow
+                settingsItem="sessions.default-open-in-app"
+                label={t('settings.openchamber.defaults.field.defaultOpenInApp')}
               >
-                <SelectValue>
-                  {availableOpenInApps.find((app) => app.id === selectedOpenInAppId)?.label ?? selectedOpenInAppId}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {availableOpenInApps.map((app) => (
-                  <SelectItem key={app.id} value={app.id}>{app.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingsFieldRow>
-        </SettingsSection>
-      ) : null}
+                <Select value={selectedOpenInAppId} onValueChange={(id) => void selectOpenInApp(id)}>
+                  <SelectTrigger
+                    size={SETTINGS_SELECT_SIZE}
+                    className={SETTINGS_SELECT_ROW_TRIGGER_CLASS}
+                    aria-label={t('settings.openchamber.defaults.field.defaultOpenInAppAria')}
+                  >
+                    <SelectValue>
+                      {availableOpenInApps.find((app) => app.id === selectedOpenInAppId)?.label ?? selectedOpenInAppId}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableOpenInApps.map((app) => (
+                      <SelectItem key={app.id} value={app.id}>{app.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </SettingsFieldRow>
+            </div>
+          ) : null}
+        </div>
+      </SettingsSection>
     </>
+
   );
 };

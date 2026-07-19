@@ -15,7 +15,7 @@ Command modules implement user-facing commands and preserve output contracts acr
 
 - `commands-serve.js`
   - Implements `openchamber serve`.
-  - Owns OpenCode CLI checks, port resolution, log rotation, PID/instance registry writes, foreground/background server launch, startup summaries, and foreground shutdown behavior.
+  - Owns port resolution, log rotation, PID/instance registry writes, foreground/background server launch, startup summaries, and foreground shutdown behavior. OpenCode CLI resolution/managed-install checks are owned by `cli-opencode-install.js` and injected in as `checkOpenCodeCLI`.
 
 - `commands-lifecycle.js`
   - Implements `openchamber stop` and `openchamber restart`.
@@ -61,6 +61,7 @@ These modules hold reusable, non-presentational logic for commands.
 
 - `cli-paths.js`
   - Data, run, log, settings, tunnel profile, and managed-local config paths.
+  - `readOpenCodeManagedInstallDeclinedAt()` / `writeOpenCodeManagedInstallDeclined()`: narrow read/write of the OpenCode managed-install decline cooldown, stored in its own `opencode-managed-install-state.json` (same defensive-read/atomic-write shape as the existing tunnel CLI state file, not `settings.json`).
 
 - `cli-process.js`
   - PID files, instance registry files, process identity checks, runtime metadata checks, and process termination helpers.
@@ -82,6 +83,9 @@ These modules hold reusable, non-presentational logic for commands.
 
 - `cli-executables.js`
   - Executable path resolution and PATH lookup helpers.
+
+- `cli-opencode-install.js`
+  - `checkOpenCodeCLI(onNotice, options)`: sole OpenCode CLI resolution entry point used by `serveCommand` (via `cli.js` DI). Order: `OPENCODE_BINARY` override, PATH lookup (`cli-executables.js`), a previously-installed managed download (silent reuse, no re-prompt), then — if nothing resolves and no prior decline is within its 14-day cooldown (tracked via `cli-paths.js`'s `opencode-managed-install-state.json`) — prompts to install (interactive TTY) or installs silently (non-interactive/`--quiet`/`--json`) using `server/lib/opencode/managed-install-runtime.js`. A decline (interactive) persists the cooldown and re-throws the existing "not found on PATH" error unchanged.
 
 - `cli-startup.js`
   - Native startup service detection, install/uninstall/status helpers, and platform-specific startup command execution.

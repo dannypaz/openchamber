@@ -1813,23 +1813,23 @@ export const OpenChamberVisualSettings: React.FC<OpenChamberVisualSettingsProps>
                                                 />
                                             ) : null}
                                         </div>
-                                </SettingsSection>
-                            )}
-                            {shouldShow('reasoning') && (
-                                <SettingsSection
-                                    title={t('settings.openchamber.visual.section.reasoning')}
-                                    settingsItem="chat.reasoning"
-                                    contentClassName={SETTINGS_OPTION_STACK_CLASS}
-                                >
-                                    <SettingsCheckboxRow
-                                        checked={showReasoningTraces}
-                                        onChange={setShowReasoningTraces}
-                                        label={t('settings.openchamber.visual.field.showReasoningTraces')}
-                                        ariaLabel={t('settings.openchamber.visual.field.showReasoningTracesAria')}
-                                        settingsItem="chat.reasoning-traces"
-                                    />
-                                    {showReasoningTraces && (
+                                    </SettingsSection>
+                                )}
+                                {shouldShow('reasoning') && (
+                                    <SettingsSection
+                                        title={t('settings.openchamber.visual.section.reasoning')}
+                                        settingsItem="chat.reasoning"
+                                        contentClassName={SETTINGS_OPTION_STACK_CLASS}
+                                    >
                                         <SettingsCheckboxRow
+                                            checked={showReasoningTraces}
+                                            onChange={setShowReasoningTraces}
+                                            label={t('settings.openchamber.visual.field.showReasoningTraces')}
+                                            ariaLabel={t('settings.openchamber.visual.field.showReasoningTracesAria')}
+                                            settingsItem="chat.reasoning-traces"
+                                        />
+                                        {showReasoningTraces && (
+                                            <SettingsCheckboxRow
                                                 checked={collapsibleThinkingBlocks}
                                                 onChange={setCollapsibleThinkingBlocks}
                                                 label={t('settings.openchamber.visual.field.collapsibleThinkingBlocks')}

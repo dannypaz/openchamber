@@ -102,6 +102,7 @@ export const createFeatureRoutesRuntime = (dependencies) => {
       isUnsafeSkillRelativePath,
       buildOpenCodeUrl,
       getOpenCodeAuthHeaders,
+      managedOpenCodeInstallRuntime,
       getOpenCodePort,
       buildAugmentedPath,
       projectConfigRuntime,
@@ -135,6 +136,7 @@ export const createFeatureRoutesRuntime = (dependencies) => {
       refreshOpenCodeAfterConfigChange,
       buildOpenCodeUrl,
       getOpenCodeAuthHeaders,
+      managedOpenCodeInstallRuntime,
     });
 
     registerProjectIconRoutes(app, {
