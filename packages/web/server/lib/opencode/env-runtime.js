@@ -12,6 +12,9 @@ export const createOpenCodeEnvRuntime = (deps) => {
   } = deps;
   const runSpawnSync = typeof deps.spawnSync === 'function' ? deps.spawnSync : spawnSync;
   const resolveHomeDir = typeof deps.homedir === 'function' ? deps.homedir : () => os.homedir();
+  const resolveManagedOpenCodeCliPath = typeof deps.resolveManagedOpenCodeCliPath === 'function'
+    ? deps.resolveManagedOpenCodeCliPath
+    : () => null;
 
   const parseNullSeparatedEnvSnapshot = (raw) => {
     if (typeof raw !== 'string' || raw.length === 0) {
@@ -427,6 +430,12 @@ export const createOpenCodeEnvRuntime = (deps) => {
       // Do not auto-detect OpenCode from WSL. OpenCode sessions are keyed by
       // server-visible directories, and mixing Windows paths with WSL paths
       // creates duplicate/missing project state in the desktop app.
+      const managedDownloadWin = resolveManagedOpenCodeCliPath();
+      if (managedDownloadWin) {
+        clearWslOpencodeResolution();
+        state.resolvedOpencodeBinarySource = 'managed-download';
+        return managedDownloadWin;
+      }
       return bundledOpenCodeCliFallback();
     }
 
@@ -449,6 +458,13 @@ export const createOpenCodeEnvRuntime = (deps) => {
         }
       } catch {
       }
+    }
+
+    const managedDownload = resolveManagedOpenCodeCliPath();
+    if (managedDownload) {
+      clearWslOpencodeResolution();
+      state.resolvedOpencodeBinarySource = 'managed-download';
+      return managedDownload;
     }
 
     return bundledOpenCodeCliFallback();

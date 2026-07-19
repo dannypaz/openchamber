@@ -5,6 +5,7 @@ import path from 'path';
 const TUNNEL_PROFILES_FILE_NAME = 'tunnel-profiles.json';
 const LEGACY_CLOUDFLARE_MANAGED_REMOTE_FILE_NAME = 'cloudflare-managed-remote-tunnels.json';
 const TUNNEL_CLI_STATE_FILE_NAME = 'tunnel-cli-state.json';
+const OPENCODE_MANAGED_INSTALL_STATE_FILE_NAME = 'opencode-managed-install-state.json';
 
 function getDataDir() {
   if (typeof process.env.OPENCHAMBER_DATA_DIR === 'string' && process.env.OPENCHAMBER_DATA_DIR.trim().length > 0) {
@@ -99,6 +100,35 @@ function getRunDir() {
   return dir;
 }
 
+function getOpenCodeManagedInstallStateFilePath() {
+  return path.join(getDataDir(), OPENCODE_MANAGED_INSTALL_STATE_FILE_NAME);
+}
+
+function readOpenCodeManagedInstallState() {
+  try {
+    const raw = fs.readFileSync(getOpenCodeManagedInstallStateFilePath(), 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function readOpenCodeManagedInstallDeclinedAt() {
+  const state = readOpenCodeManagedInstallState();
+  return Number.isFinite(state.declinedAt) ? state.declinedAt : null;
+}
+
+function writeOpenCodeManagedInstallDeclined() {
+  const filePath = getOpenCodeManagedInstallStateFilePath();
+  const current = readOpenCodeManagedInstallState();
+  const next = { ...current, declinedAt: Date.now() };
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(next, null, 2), 'utf8');
+}
 
 export {
   getDataDir,
@@ -110,4 +140,6 @@ export {
   readLastManagedLocalConfigPath,
   writeLastManagedLocalConfigPath,
   getRunDir,
+  readOpenCodeManagedInstallDeclinedAt,
+  writeOpenCodeManagedInstallDeclined,
 };

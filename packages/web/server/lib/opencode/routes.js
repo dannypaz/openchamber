@@ -2,6 +2,10 @@ import { createProjectIdFromPath } from '../projects/project-id.js';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import {
+  compareVersions,
+  fetchLatestOpenCodeVersion,
+} from './opencode-version-lookup.js';
 
 export const registerOpenCodeRoutes = (app, dependencies) => {
   const {
@@ -20,6 +24,7 @@ export const registerOpenCodeRoutes = (app, dependencies) => {
     refreshOpenCodeAfterConfigChange,
     buildOpenCodeUrl,
     getOpenCodeAuthHeaders,
+    managedOpenCodeInstallRuntime,
   } = dependencies;
 
   let authLibrary = null;
@@ -47,6 +52,12 @@ export const registerOpenCodeRoutes = (app, dependencies) => {
     return resolution?.source === 'bundled' || resolution?.detectedSourceNow === 'bundled';
   };
 
+  const isManagedDownloadOpenCodeBinaryActive = async () => {
+    const settings = await readSettingsFromDiskMigrated();
+    const resolution = await getOpenCodeResolutionSnapshot(settings);
+    return resolution?.source === 'managed-download' || resolution?.detectedSourceNow === 'managed-download';
+  };
+
   const readOpenCodeCurrentVersion = async () => {
     const healthResponse = await fetch(buildOpenCodeUrl('/global/health', ''), {
       method: 'GET',
@@ -58,69 +69,6 @@ export const registerOpenCodeRoutes = (app, dependencies) => {
     }
     const currentVersion = typeof health?.version === 'string' ? health.version.replace(/^v/, '') : null;
     return { ok: true, currentVersion };
-  };
-
-  const parseVersionForComparison = (value) => {
-    const normalized = String(value || '').replace(/^v/, '').split('+')[0];
-    const prereleaseIndex = normalized.indexOf('-');
-    const core = prereleaseIndex >= 0 ? normalized.slice(0, prereleaseIndex) : normalized;
-    const parts = core.split('.').map((part) => {
-      const parsed = Number.parseInt(part || '0', 10);
-      return Number.isFinite(parsed) ? parsed : 0;
-    });
-    return { parts, prerelease: prereleaseIndex >= 0 };
-  };
-
-  const compareVersions = (left, right) => {
-    const a = parseVersionForComparison(left);
-    const b = parseVersionForComparison(right);
-    const length = Math.max(a.parts.length, b.parts.length);
-    for (let index = 0; index < length; index += 1) {
-      const diff = (a.parts[index] || 0) - (b.parts[index] || 0);
-      if (diff !== 0) return diff;
-    }
-    if (a.prerelease !== b.prerelease) return a.prerelease ? -1 : 1;
-    return 0;
-  };
-
-  const fetchLatestOpenCodeVersionFromGithub = async () => {
-    const response = await fetch('https://api.github.com/repos/anomalyco/opencode/releases/latest', {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) {
-      throw new Error(`OpenCode releases responded with ${response.status}`);
-    }
-    const payload = await response.json();
-    const tag = typeof payload?.tag_name === 'string' ? payload.tag_name.trim() : '';
-    return tag.replace(/^v/, '');
-  };
-
-  const fetchLatestOpenCodeVersionFromNpm = async () => {
-    const response = await fetch('https://registry.npmjs.org/opencode-ai/latest', {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) {
-      throw new Error(`OpenCode npm registry responded with ${response.status}`);
-    }
-    const payload = await response.json();
-    return typeof payload?.version === 'string' ? payload.version.trim().replace(/^v/, '') : '';
-  };
-
-  const fetchLatestOpenCodeVersion = async () => {
-    const results = await Promise.allSettled([
-      fetchLatestOpenCodeVersionFromNpm(),
-      fetchLatestOpenCodeVersionFromGithub(),
-    ]);
-    const versions = results
-      .filter((result) => result.status === 'fulfilled' && result.value)
-      .map((result) => result.value);
-    if (versions.length === 0) {
-      const failure = results.find((result) => result.status === 'rejected');
-      throw failure?.reason instanceof Error ? failure.reason : new Error('Failed to resolve latest OpenCode version');
-    }
-    return versions.sort((left, right) => compareVersions(right, left))[0];
   };
 
   const pruneExpiredPendingMcpAuthContexts = () => {
@@ -165,21 +113,42 @@ export const registerOpenCodeRoutes = (app, dependencies) => {
       const target = typeof req.body?.target === 'string' && req.body.target.trim().length > 0
         ? req.body.target.trim()
         : undefined;
-      const response = await fetch(buildOpenCodeUrl('/global/upgrade', ''), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...getOpenCodeAuthHeaders(),
-        },
-        body: JSON.stringify(target ? { target } : {}),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        return res.status(response.status).json({
-          success: false,
-          error: payload?.error || response.statusText || 'Failed to upgrade OpenCode',
+
+      let payload;
+      if (await isManagedDownloadOpenCodeBinaryActive()) {
+        if (!managedOpenCodeInstallRuntime) {
+          return res.status(500).json({
+            success: false,
+            error: 'Managed OpenCode install runtime is not available.',
+          });
+        }
+        try {
+          const version = target || await fetchLatestOpenCodeVersion();
+          const result = await managedOpenCodeInstallRuntime.installManagedOpenCode({ version });
+          payload = { success: true, version: result.version };
+        } catch (installError) {
+          return res.status(500).json({
+            success: false,
+            error: installError instanceof Error ? installError.message : 'Failed to install OpenCode CLI update',
+          });
+        }
+      } else {
+        const response = await fetch(buildOpenCodeUrl('/global/upgrade', ''), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            ...getOpenCodeAuthHeaders(),
+          },
+          body: JSON.stringify(target ? { target } : {}),
         });
+        payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          return res.status(response.status).json({
+            success: false,
+            error: payload?.error || response.statusText || 'Failed to upgrade OpenCode',
+          });
+        }
       }
 
       try {
@@ -216,6 +185,10 @@ export const registerOpenCodeRoutes = (app, dependencies) => {
         });
       }
 
+      const settings = await readSettingsFromDiskMigrated();
+      const resolution = await getOpenCodeResolutionSnapshot(settings);
+      const source = resolution?.detectedSourceNow || resolution?.source || null;
+
       const [healthResponse, latestVersion] = await Promise.all([
         fetch(buildOpenCodeUrl('/global/health', ''), {
           method: 'GET',
@@ -232,13 +205,14 @@ export const registerOpenCodeRoutes = (app, dependencies) => {
       }
       const currentVersion = typeof health?.version === 'string' ? health.version.replace(/^v/, '') : null;
       if (!currentVersion || !latestVersion) {
-        return res.json({ available: null, currentVersion, latestVersion: latestVersion || null });
+        return res.json({ available: null, currentVersion, latestVersion: latestVersion || null, source });
       }
       const available = compareVersions(latestVersion, currentVersion) > 0;
       return res.json({
         available,
         currentVersion,
         latestVersion,
+        source,
       });
     } catch (error) {
       return res.status(500).json({

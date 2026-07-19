@@ -53,6 +53,7 @@ import { registerEphemeralTargetRoutes } from './lib/opencode/ephemeral-target-r
 import { createCloudProvisioningRuntime } from './lib/opencode/cloud-provisioning.js';
 import { registerCloudProvisioningRoutes } from './lib/opencode/cloud-provisioning-routes.js';
 import { createOpenCodeEnvRuntime } from './lib/opencode/env-runtime.js';
+import { createManagedOpenCodeInstallRuntime } from './lib/opencode/managed-install-runtime.js';
 import { resolveOpenCodeEnvConfig } from './lib/opencode/env-config.js';
 import { createHmrStateRuntime } from './lib/opencode/hmr-state-runtime.js';
 import { createOpenCodeNetworkRuntime } from './lib/opencode/network-runtime.js';
@@ -655,10 +656,15 @@ Object.defineProperties(openCodeEnvState, {
   resolvedWslDistro: { get: () => resolvedWslDistro, set: (value) => { resolvedWslDistro = value; } },
 });
 
+const managedOpenCodeInstallRuntime = createManagedOpenCodeInstallRuntime({
+  openchamberDataDir: OPENCHAMBER_DATA_DIR,
+});
+
 const openCodeEnvRuntime = createOpenCodeEnvRuntime({
   state: openCodeEnvState,
   normalizeDirectoryPath,
   readSettingsFromDiskMigrated,
+  resolveManagedOpenCodeCliPath: managedOpenCodeInstallRuntime.resolveManagedOpenCodeCliPath,
 });
 
 const applyLoginShellEnvSnapshot = (...args) => openCodeEnvRuntime.applyLoginShellEnvSnapshot(...args);
@@ -1575,6 +1581,7 @@ async function main(options = {}) {
     isUnsafeSkillRelativePath,
     buildOpenCodeUrl,
     getOpenCodeAuthHeaders,
+    managedOpenCodeInstallRuntime,
     getOpenCodePort: () => openCodePort,
     buildAugmentedPath,
     projectConfigRuntime,
