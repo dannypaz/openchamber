@@ -744,7 +744,6 @@ export const ProjectActionsButton = ({
     }
     openContextPreview(selectedRunning.directory, selectedRunPreviewUrl);
   };
-
   if (compact) {
     const compactPrimaryButton = (
       <button

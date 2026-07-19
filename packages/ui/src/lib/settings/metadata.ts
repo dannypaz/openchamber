@@ -2,6 +2,7 @@ import type { SidebarSection } from '@/constants/sidebar';
 
 export type SettingsPageSlug =
   | 'home'
+  | 'general'
   | 'projects'
   | 'remote-instances'
   | 'providers'
@@ -27,14 +28,10 @@ export type SettingsPageSlug =
   | 'about';
 
 type SettingsPageGroup =
-  | 'appearance'
-  | 'projects'
   | 'general'
+  | 'projects'
   | 'opencode'
-  | 'git'
-  | 'skills'
-  | 'usage'
-  | 'advanced';
+  | 'content';
 
 export interface SettingsRuntimeContext {
   isVSCode: boolean;
@@ -64,6 +61,13 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
     keywords: ['search', 'settings'],
   },
   {
+    slug: 'general',
+    title: 'General',
+    group: 'general',
+    kind: 'single',
+    keywords: ['general', 'startup', 'launch at login', 'autostart', 'tray', 'password', 'passkey', 'security', 'privacy', 'telemetry', 'transport', 'network', 'lan', 'binary', 'cli'],
+  },
+  {
     slug: 'projects',
     title: 'Projects',
     group: 'projects',
@@ -88,7 +92,7 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
   {
     slug: 'usage',
     title: 'Usage',
-    group: 'usage',
+    group: 'general',
     kind: 'split',
     keywords: ['quota', 'billing', 'tokens', 'usage', 'limits'],
   },
@@ -130,21 +134,21 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
   {
     slug: 'skills.installed',
     title: 'Skills',
-    group: 'skills',
+    group: 'content',
     kind: 'split',
     keywords: ['skill', 'skills', 'instructions', 'install', 'catalog'],
   },
   {
     slug: 'skills.catalog',
     title: 'Skills Catalog',
-    group: 'skills',
+    group: 'content',
     kind: 'single',
     keywords: ['install', 'catalog', 'external', 'repository', 'skills catalog'],
   },
   {
     slug: 'git',
     title: 'Git',
-    group: 'git',
+    group: 'projects',
     kind: 'single',
     keywords: ['git', 'github', 'identity', 'identities', 'ssh', 'profiles', 'credentials', 'keys', 'commit', 'gitmoji', 'oauth', 'prs', 'issues'],
     isAvailable: (ctx) => !ctx.isVSCode,
@@ -152,7 +156,7 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
   {
     slug: 'appearance',
     title: 'Appearance',
-    group: 'appearance',
+    group: 'general',
     kind: 'single',
     keywords: ['theme', 'font', 'spacing', 'padding', 'corner radius', 'radius', 'input bar', 'keyboard', 'viewport', 'mobile', 'terminal', 'pwa', 'install name', 'app shortcuts'],
   },
@@ -181,7 +185,7 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
   {
     slug: 'magic-prompts',
     title: 'System Prompts',
-    group: 'general',
+    group: 'content',
     kind: 'split',
     keywords: ['prompts', 'templates', 'git', 'github', 'review', 'commit', 'pull request'],
     isAvailable: (ctx) => !ctx.isVSCode,
@@ -189,17 +193,17 @@ export const SETTINGS_PAGE_METADATA: readonly SettingsPageMeta[] = [
   {
     slug: 'snippets',
     title: 'Snippets',
-    group: 'general',
+    group: 'content',
     kind: 'split',
     keywords: ['prompt', 'templates', 'multi-run', 'strategy', 'approach'],
     isAvailable: (ctx) => !ctx.disableSnippets,
   },
 
   { slug: 'notifications', title: 'Notifications', group: 'general', kind: 'single', keywords: ['alerts', 'native', 'summary', 'summarization'], },
-  { slug: 'voice', title: 'Voice', group: 'advanced', kind: 'single', keywords: ['tts', 'speech', 'voice'], isAvailable: (ctx) => !ctx.isVSCode },
-  { slug: 'tunnel', title: 'Remote Tunnel', group: 'advanced', kind: 'single', keywords: ['tunnel', 'cloudflare', 'qr', 'remote', 'mobile', 'share'], isAvailable: (ctx) => !ctx.isVSCode },
-  { slug: 'cloud', title: 'Cloud VMs', group: 'advanced', kind: 'single', keywords: ['cloud', 'vm', 'microvm', 'ephemeral', 'provisioning', 'webhook', 'sandbox'], isAvailable: (ctx) => !ctx.isVSCode },
-  { slug: 'about', title: 'About', group: 'advanced', kind: 'single', keywords: ['about', 'version', 'updates', 'release', 'changelog'], isAvailable: (ctx) => ctx.isMobile },
+  { slug: 'voice', title: 'Voice', group: 'general', kind: 'single', keywords: ['tts', 'speech', 'voice'], isAvailable: (ctx) => !ctx.isVSCode },
+  { slug: 'tunnel', title: 'External Tunnel', group: 'projects', kind: 'single', keywords: ['tunnel', 'external', 'cloudflare', 'qr', 'remote', 'mobile', 'share'], isAvailable: (ctx) => !ctx.isVSCode },
+  { slug: 'cloud', title: 'Cloud VMs', group: 'projects', kind: 'single', keywords: ['cloud', 'vm', 'microvm', 'ephemeral', 'provisioning', 'webhook', 'sandbox'], isAvailable: (ctx) => !ctx.isVSCode },
+  { slug: 'about', title: 'About', group: 'general', kind: 'single', keywords: ['about', 'version', 'updates', 'release', 'changelog'], isAvailable: (ctx) => ctx.isMobile && !ctx.isVSCode },
 ] as const;
 
 const LEGACY_SIDEBAR_SECTION_TO_SETTINGS_SLUG: Record<SidebarSection, SettingsPageSlug> = {

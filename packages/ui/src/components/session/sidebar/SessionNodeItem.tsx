@@ -43,6 +43,7 @@ import { MultiRunFusionDialog } from '@/components/multirun/MultiRunFusionDialog
 import { FusionIcon } from '@/components/icons/FusionIcon';
 import { RuntimeAPIContext } from '@/contexts/runtimeAPIContext';
 import { useUIStore } from '@/stores/useUIStore';
+import { startSessionTreeWorktreeMove, useIsSessionWorktreeMovePending } from '@/lib/worktrees/sessionWorktreeMove';
 
 type Folder = { id: string; name: string; sessionIds: string[] };
 
@@ -348,6 +349,18 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
     return out;
   }, []);
 
+  const collectNodeDescendantSessions = React.useCallback((root: SessionNode): Session[] => {
+    const out: Session[] = [];
+    const walk = (current: SessionNode) => {
+      current.children.forEach((child) => {
+        out.push(child.session);
+        walk(child);
+      });
+    };
+    walk(root);
+    return out;
+  }, []);
+
   const [exportDialogOpen, setExportDialogOpen] = React.useState(false);
   const [exportIncludeSubtasks, setExportIncludeSubtasks] = React.useState(true);
 
@@ -356,6 +369,7 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
     React.useCallback((state) => Boolean(state.sessionMemoryState.get(viewportSessionKey(session.id))?.isZombie), [session.id]),
   );
   const sessionStatus = useGlobalSessionStatus(session.id);
+  const isMovingToWorktree = useIsSessionWorktreeMovePending(session.id);
   const sessionPermissions = useSessionPermissions(session.id, sessionDirectory ?? undefined);
   const sessionGoal = getSessionGoal(resolvedSession);
   const sessionGoalGlyph = sessionGoal ? (
@@ -580,7 +594,7 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
   const statusType = sessionStatus?.type ?? 'idle';
   const isStreaming = statusType === 'busy' || statusType === 'retry';
   const pendingPermissionCount = sessionPermissions.length;
-  const showUnreadStatus = !isStreaming && needsAttention && !isActive;
+  const showUnreadStatus = !isMovingToWorktree && !isStreaming && needsAttention && !isActive;
   const showStatusMarker = isStreaming || showUnreadStatus;
   const statusMarkerContent = isStreaming
     ? (
@@ -597,8 +611,8 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
           title={t('sessions.sidebar.session.status.unread')}
         />
       );
-  const hideLeadingIndicatorOnHover = !alwaysShowActions && hasChildren && (showStatusMarker || isPinnedSession);
-  const showPinnedMarker = isPinnedSession && !showStatusMarker;
+  const hideLeadingIndicatorOnHover = !alwaysShowActions && hasChildren && (isMovingToWorktree || showStatusMarker || isPinnedSession);
+  const showPinnedMarker = isPinnedSession && !isMovingToWorktree && !showStatusMarker;
   const pinnedMarkerContent = (
     <Icon
       name="pushpin"
@@ -606,7 +620,7 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
       aria-label={t('sessions.sidebar.session.status.pinned')}
     />
   );
-  const leadingIndicators = showStatusMarker || showPinnedMarker ? (
+  const leadingIndicators = isMovingToWorktree || showStatusMarker || showPinnedMarker ? (
     <span
       className={cn(
         'pointer-events-none absolute left-0.5 inline-flex h-3.5 w-3.5 items-center justify-center transition-opacity',
@@ -614,11 +628,16 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
         hideLeadingIndicatorOnHover ? 'opacity-100 group-hover:opacity-0 group-focus-within:opacity-0' : '',
       )}
     >
-      {showStatusMarker ? statusMarkerContent : null}
-      {showPinnedMarker ? pinnedMarkerContent : null}
+      {isMovingToWorktree ? (
+        <Icon
+          name="loader-4"
+          className="h-3 w-3 animate-spin text-primary"
+          aria-label={t('sessions.sidebar.session.status.movingToWorktree')}
+        />
+      ) : showStatusMarker ? statusMarkerContent : showPinnedMarker ? pinnedMarkerContent : null}
     </span>
   ) : null;
-  const hideChevronUntilHover = hasChildren && !alwaysShowActions && (showStatusMarker || isPinnedSession);
+  const hideChevronUntilHover = hasChildren && !alwaysShowActions && (isMovingToWorktree || showStatusMarker || isPinnedSession);
   const subsessionChevron = hasChildren ? (
     <span
       role="button"
@@ -843,6 +862,38 @@ function SessionNodeItemComponent(props: Props): React.ReactNode {
         <Icon name="download" className="mr-1 h-4 w-4" />
         {t('sessions.sidebar.session.menu.exportMarkdown')}
       </Item>
+      {!isSubtaskSession && !archivedBucket && !isVSCode ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="block">
+              <Item
+                disabled={!sessionDirectory || isStreaming || isMovingToWorktree}
+                onClick={() => {
+                  if (!sessionDirectory || isStreaming || isMovingToWorktree) return;
+                  startSessionTreeWorktreeMove({
+                    root: resolvedSession,
+                    descendants: collectNodeDescendantSessions(node),
+                    sourceDirectory: sessionDirectory,
+                    successMessage: t('sessions.sidebar.session.moveToWorktree.success'),
+                    failureMessage: t('sessions.sidebar.session.moveToWorktree.failed'),
+                  });
+                }}
+                className="w-full [&>svg]:mr-1"
+              >
+                <Icon name="folder-shared" className="mr-1 h-4 w-4" />
+                {t('sessions.sidebar.session.menu.moveToWorktree')}
+              </Item>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-72">
+            {isMovingToWorktree
+              ? t('sessions.sidebar.session.moveToWorktree.tooltipMoving')
+              : isStreaming
+                ? t('sessions.sidebar.session.moveToWorktree.tooltipBusy')
+                : t('sessions.sidebar.session.moveToWorktree.tooltip')}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
       {isMultiRunLikeSession ? (
         <Item onClick={() => setFusionDialogOpen(true)} className="[&>svg]:mr-1">
           <FusionIcon className="mr-1 h-4 w-4" />
