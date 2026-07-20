@@ -223,7 +223,7 @@ export function getSettingsNavIcon(slug: SettingsPageSlug): IconName | null {
     case 'tunnel':
       return 'home-office';
     case 'cloud':
-      return 'cloud';
+      return 'server';
     case 'about':
       return 'information';
     case 'home':
