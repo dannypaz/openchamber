@@ -1808,6 +1808,7 @@ export const dict = {
   'chat.statusRow.todo.priority.low': 'Low priority',
   'chat.statusRow.actions.stopGeneratingAria': 'Stop generating',
   'chat.statusRow.tasksTitle': 'Tasks',
+  'chat.statusRow.modelStatus': '{model} is {status}',
   'chat.statusRow.summary.activeLeft': '{active} active · {left} left',
   'chat.statusRow.aborted': 'Aborted',
   'chat.revertIndicator.redo': 'Redo',
